@@ -540,7 +540,7 @@ calling the program in the error messages.
 |              | `Please enter the number of a card in your hand cards!\n`     | The player's hand cards do not contain this card   |
 |              | `Please enter the number of a card in your chosen cards!\n`     | The player's chosen cards do not contain this card   |
 |              | `This card cannot extend the chosen row!\n`        | The chosen card cannot extend the chosen row                       |
-|              | `Warning: Results not written to file!\n `         | The results could not be appended to the config file               |
+|              | `Warning: Results not written to file!\n`         | The results could not be appended to the config file               |
 </details>
 
 
