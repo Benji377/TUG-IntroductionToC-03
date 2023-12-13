@@ -88,7 +88,7 @@ For example:
 
 If the program is called
 - with the wrong number of parameters
-- with a config file that cannot be opened
+- with a config file that cannot be opened for reading
 - with a config file that does not start with the correct [magic number](https://en.wikipedia.org/wiki/Magic_number_(programming))
 
 the corresponding error message should be printed and the program should terminate with the correct return
@@ -531,7 +531,7 @@ calling the program in the error messages.
 |--------------|----------------------------------------------------|--------------------------------------------------------------------|
 | 0            | -                                                  | The program terminated successfully                                |
 | 1            | `Usage: ./a3 <config file>\n`                      | The wrong number of command line parameters was entered            |
-| 2            | `Error: Cannot open file: <CONFIG_FILE>\n`         | The config file could not be opened                                |
+| 2            | `Error: Cannot open file: <CONFIG_FILE>\n`         | The config file could not be opened for reading                                |
 | 3            | `Error: Invalid file: <CONFIG_FILE>\n`             | The config file contains the wrong *magic number*                  |
 | 4            | `Error: Out of memory\n`                           | The program was not able to allocate new memory                    |
 |              | `Please enter a valid command!\n`                  | The command does not exist                                         |
