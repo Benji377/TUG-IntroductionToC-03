@@ -527,20 +527,20 @@ only the highest message in the below table should be printed.
 `<CONFIG_FILE>` should be replaced with the command line parameter that was entered by the user
 calling the program in the error messages.
 
-| Return Value | Error Message                                      | Meaning                                                            |
-|--------------|----------------------------------------------------|--------------------------------------------------------------------|
-| 0            | -                                                  | The program terminated successfully                                |
-| 1            | `Usage: ./a3 <config file>\n`                      | The wrong number of command line parameters was entered            |
-| 2            | `Error: Cannot open file: <CONFIG_FILE>\n`         | The config file could not be opened for reading                                |
-| 3            | `Error: Invalid file: <CONFIG_FILE>\n`             | The config file contains the wrong *magic number*                  |
-| 4            | `Error: Out of memory\n`                           | The program was not able to allocate new memory                    |
-|              | `Please enter a valid command!\n`                  | The command does not exist                                         |
-|              | `Please enter the correct number of parameters!\n` | The command was called with too many or too few parameters         |
-|              | `Please enter a valid row number!\n`               | The entered row number is below 1 or above 3                       |
-|              | `Please enter the number of a card in your hand cards!\n`     | The player's hand cards do not contain this card   |
-|              | `Please enter the number of a card in your chosen cards!\n`     | The player's chosen cards do not contain this card   |
-|              | `This card cannot extend the chosen row!\n`        | The chosen card cannot extend the chosen row                       |
-|              | `Warning: Results not written to file!\n`         | The results could not be appended to the config file               |
+| Return Value | Error Message                                      | Meaning                                                            | Program Phase|
+|--------------|----------------------------------------------------|--------------------------------------------------------------------|-------------|
+| 0            | -                                                  | The program terminated successfully                                | - |
+| 1            | `Usage: ./a3 <config file>\n`                      | The wrong number of command line parameters was entered            | Starting the Game |
+| 2            | `Error: Cannot open file: <CONFIG_FILE>\n`         | The config file could not be opened for reading                               | Starting the Game |
+| 3            | `Error: Invalid file: <CONFIG_FILE>\n`             | The config file contains the wrong *magic number*                  | Starting the Game |
+| 4            | `Error: Out of memory\n`                           | The program was not able to allocate new memory                    | - |
+|              | `Please enter the number of a card in your hand cards!\n`     | The player's hand cards do not contain this card, or the input is not a number and not a `quit` command  | Card Choosing Phase |
+|              | `Please enter a valid command!\n`                  | The command does not exist                                         | Action Phase |
+|              | `Please enter the correct number of parameters!\n` | The command was called with too many or too few parameters    | Card Choosing Phase, Action Phase |
+|              | `Please enter a valid row number!\n`               | The entered row number is below 1 or above 3, or the `<ROW>` parameter is not a number                      | Action Phase |
+|              | `Please enter the number of a card in your chosen cards!\n`     | The player's chosen cards do not contain this card, or the `<CARD_NUMBER>` parameter is not a number   | Action Phase |
+|              | `This card cannot extend the chosen row!\n`        | The chosen card cannot extend the chosen row                       | Action Phase |
+|              | `Warning: Results not written to file!\n`         | The results could not be appended to the config file               | Documenting the Results |
 </details>
 
 
