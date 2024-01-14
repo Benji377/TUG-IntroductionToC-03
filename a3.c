@@ -10,7 +10,7 @@
 #define MEMORY_ALLOCATION_ERROR 4
 
 const int MAX_CARDS_HAND = 10;
-const int MAX_CARD_ROWS = 20;
+const int MAX_CARD_ROWS = 3;
 
 struct _Card_ {
   char color_;
@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
   Player *player_two = createPlayer();
   player_two->player_id_ = 2;
   if (player_two == NULL) {
-    freePlayer(player_one);
+    //freePlayer(player_one);
     return MEMORY_ALLOCATION_ERROR;
   }
   // Assign cards to players
@@ -104,8 +104,8 @@ int main(int argc, char *argv[]) {
 
 
   } while (1);
-  freePlayer(player_one);
-  freePlayer(player_two);
+  //freePlayer(player_one);
+  //freePlayer(player_two);
   return 0;
 }
 
@@ -144,7 +144,6 @@ int checkConfigFile(char *config_file) {
   // Check if program can open file
   FILE *file = openFile(config_file);
   if (file == NULL) {
-    printf("Error: Cannot open file: %s\n", config_file);
     return CANNOT_OPEN_FILE;
   }
 
@@ -189,7 +188,7 @@ Player *createPlayer() {
   player->card_rows_ = malloc(sizeof(Card) * MAX_CARDS_HAND);
   if (player->card_rows_ == NULL) {
     printf("Error: Out of memory\n");
-    freePlayer(player);
+    //freePlayer(player);
     return NULL;
   }
   return player;
@@ -202,13 +201,13 @@ Card *createCard(char *config_file_line) {
     printf("Error: Memory allocation error\n");
     return NULL;
   }
-  // The line in the config has the following format <value>_<color>\n
-  // We need to split the line into the value and the color
-  char *color = strtok(config_file_line, "_");
-  char *value = strtok(NULL, "_");
+  // We get a line that looks like this: 1_g\n and the char is the color and the int is the value
+  // So we need to split the string we get
+  int value = atoi(strtok(config_file_line, "_"));
+  char *color = strtok(NULL, "_");
 
   card->color_ = *color;
-  card->value_ = atoi(value);
+  card->value_ = value;
   card->next_ = NULL;
   return card;
 }
@@ -261,6 +260,7 @@ int cardChoosingPhase(Player *player_one, Player *player_two) {
   if (chooseCardToKeep(player_one) == 1) {
     return 1;
   }
+  printf("\n");
   printPlayer(player_two);
   printf("Please choose a first card to keep:\n");
   if (chooseCardToKeep(player_two) == 1) {
@@ -270,7 +270,9 @@ int cardChoosingPhase(Player *player_one, Player *player_two) {
   if (chooseCardToKeep(player_two) == 1) {
     return 1;
   }
+  printf("\n");
   printf("Card choosing phase is over - passing remaining hand cards to the next player!\n");
+  printf("\n");
   return 0;
 }
 
@@ -288,9 +290,9 @@ int actionChoosingPhase(Player *player_one, Player *player_two) {
 
 void printPlayer(Player *player) {
   printf("Player %i:\n", player->player_id_);
-  printf("  hand cards:\n");
+  printf("  hand cards: ");
   Card *head = &player->hand_cards_;
-  while (head != NULL) {
+  while (head != NULL && head->color_ != '\0') {
     if (head->next_ != NULL) {
       printf("%i_%c ", head->value_, head->color_);
     } else {
@@ -298,9 +300,9 @@ void printPlayer(Player *player) {
     }
     head = head->next_;
   }
-  printf("  chosen cards:\n");
-  *head = player->table_cards_;
-  while (head != NULL) {
+  printf("  chosen cards: ");
+  head = &player->table_cards_;
+  while (head != NULL && head->color_ != '\0') {
     if (head->next_ != NULL) {
       printf("%i_%c ", head->value_, head->color_);
     } else {
@@ -308,12 +310,11 @@ void printPlayer(Player *player) {
     }
     head = head->next_;
   }
-  printf("Player card rows:\n");
   if (player->card_rows_ != NULL) {
     for (int i = 0; i < MAX_CARD_ROWS; i++) {
       if (player->card_rows_[i].color_ != '\0') {
         printf("  row_%i: ", i);
-        *head = player->card_rows_[i];
+        head = &player->card_rows_[i];
         while (head != NULL) {
           if (head->next_ != NULL) {
             printf("%i_%c ", head->value_, head->color_);
@@ -326,6 +327,7 @@ void printPlayer(Player *player) {
     }
     printf("\n");
   }
+  printf("\n");
 }
 
 Card *getCardFromHand(Player *player, int card_number) {
@@ -345,8 +347,10 @@ int chooseCardToKeep(Player *player) {
   do {
     int card_number;
     printf("P%i> ", player->player_id_);
-    char *input = NULL;
+    // Read user input. Can be either a string saying quit or a number
+    char input[10];
     scanf("%s", input);
+    printf("Input: %s\n", input);
     if (strcmp(input, "quit") == 0) {
       return 1;
     }
@@ -358,13 +362,16 @@ int chooseCardToKeep(Player *player) {
       error_occurred = 0;
     }
   } while (error_occurred);
+  printf("You chose: %i_%c\n", chosen_card->value_, chosen_card->color_);
+  removeCardFromHand(player, chosen_card);
   addCardToTable(player, chosen_card);
   return 0;
 }
 
 int addCardToTable(Player *player, Card *card) {
   Card *head = &player->table_cards_;
-  if (head == NULL) {
+  if (head == NULL || head->color_ == '\0') {
+    card->next_ = NULL;
     player->table_cards_ = *card;
     return 0;
   }
@@ -396,7 +403,7 @@ int removeCardFromTable(Player *player, Card *card) {
 
 int addCardToHand(Player *player, Card *card) {
   Card *head = &player->hand_cards_;
-  if (head == NULL) {
+  if (head == NULL || head->color_ == '\0') {
     player->hand_cards_ = *card;
     return 0;
   }
@@ -419,6 +426,7 @@ int removeCardFromHand(Player *player, Card *card) {
   while (head != NULL) {
     if (head->next_ == card) {
       head->next_ = card->next_;
+      card->next_ = NULL;
       return 0;
     }
     head = head->next_;
@@ -441,29 +449,4 @@ int addCardToRow(Player *player, Card *card, int row_number) {
     head = head->next_;
   }
   return 1;
-}
-
-
-void freePlayer(Player *player) {
-  Card *head = &player->hand_cards_;
-  while (head != NULL) {
-    Card *next = head->next_;
-    free(head);
-    head = next;
-  }
-  head = &player->table_cards_;
-  while (head != NULL) {
-    Card *next = head->next_;
-    free(head);
-    head = next;
-  }
-  for (int i = 0; i < MAX_CARD_ROWS; i++) {
-    head = &player->card_rows_[i];
-    while (head != NULL) {
-      Card *next = head->next_;
-      free(head);
-      head = next;
-    }
-  }
-  free(player);
 }
