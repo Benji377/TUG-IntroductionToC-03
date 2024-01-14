@@ -45,6 +45,7 @@ void assignCardsToPlayers(Player *player_one, Player *player_two, char *config_f
 Card *getCardFromHand(Player *player, int card_number);
 Card *getCardFromTable(Player *player, int card_number);
 int exchangePlayerCards(Player *player_one, Player *player_two);
+int sortCards(Card *cards);
 
 // Player functions
 Player *createPlayer();
@@ -91,6 +92,9 @@ int main(int argc, char *argv[]) {
   }
   // Assign cards to players
   assignCardsToPlayers(player_one, player_two, argv[1]);
+  // Sort the cards in the hand cards of each player
+  sortCards(&player_one->hand_cards_);
+  sortCards(&player_two->hand_cards_);
   // Start the game
   do {
     printCardChoosingPhase();
@@ -272,6 +276,10 @@ int cardChoosingPhase(Player *player_one, Player *player_two) {
   if (chooseCardToKeep(player_two) == 1) {
     return 1;
   }
+  sortCards(&player_one->table_cards_);
+  sortCards(&player_two->table_cards_);
+  sortCards(&player_one->table_cards_);
+  sortCards(&player_two->table_cards_);
   printf("\n");
   printf("Card choosing phase is over - passing remaining hand cards to the next player!\n");
   printf("\n");
@@ -289,6 +297,7 @@ int actionChoosingPhase(Player *player_one, Player *player_two) {
   if (input[strlen(input) - 1] == '\n') {
     input[strlen(input) - 1] = '\0';
   }
+  printf("You entered: %s\n", input);
   // Tokenize the input
   char* token = strtok(input, " ");
 
@@ -342,8 +351,11 @@ int actionChoosingPhase(Player *player_one, Player *player_two) {
 
 void printPlayer(Player *player) {
   printf("Player %i:\n", player->player_id_);
-  printf("  hand cards: ");
+  printf("  hand cards:");
   Card *head = &player->hand_cards_;
+  if (head != NULL && head->color_ != '\0') {
+    printf(" ");
+  }
   while (head != NULL && head->color_ != '\0') {
     if (head->next_ != NULL) {
       printf("%i_%c ", head->value_, head->color_);
@@ -352,8 +364,11 @@ void printPlayer(Player *player) {
     }
     head = head->next_;
   }
-  printf("  chosen cards: ");
+  printf("  chosen cards:");
   head = &player->table_cards_;
+  if (head != NULL && head->color_ != '\0') {
+    printf(" ");
+  }
   while (head != NULL && head->color_ != '\0') {
     if (head->next_ != NULL) {
       printf("%i_%c ", head->value_, head->color_);
@@ -413,7 +428,6 @@ int chooseCardToKeep(Player *player) {
     // Read user input. Can be either a string saying quit or a number
     char input[10];
     scanf("%s", input);
-    printf("Input: %s\n", input);
     if (strcmp(input, "quit") == 0) {
       return 1;
     }
@@ -511,4 +525,27 @@ int addCardToRow(Player *player, Card *card, int row_number) {
     head = head->next_;
   }
   return 1;
+}
+
+int sortCards(Card *cards) {
+  // Sort the linked list of cards in ascending order, depending on the value of the cards
+  Card *head;
+  Card *temp = NULL;
+  int swapped;
+  do {
+    swapped = 0;
+    head = cards;
+    while (head->next_ != temp) {
+      if (head->value_ > head->next_->value_) {
+        // Swap the cards
+        Card *temp_card = head->next_;
+        head->next_ = head->next_->next_;
+        temp_card->next_ = head;
+        swapped = 1;
+      }
+      head = head->next_;
+    }
+    temp = head;
+  } while (swapped);
+  return 0;
 }
