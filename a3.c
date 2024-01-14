@@ -8,6 +8,7 @@
 #define CANNOT_OPEN_FILE 2
 #define INVALID_FILE 3
 #define MEMORY_ALLOCATION_ERROR 4
+#define MAX_INPUT_LENGTH 100
 
 const int MAX_CARDS_HAND = 10;
 const int MAX_CARD_ROWS = 3;
@@ -42,6 +43,7 @@ int checkConfigFile(char *config_file);
 Card *createCard(char *config_file_line);
 void assignCardsToPlayers(Player *player_one, Player *player_two, char *config_file);
 Card *getCardFromHand(Player *player, int card_number);
+Card *getCardFromTable(Player *player, int card_number);
 int exchangePlayerCards(Player *player_one, Player *player_two);
 
 // Player functions
@@ -231,8 +233,8 @@ void assignCardsToPlayers(Player *player_one, Player *player_two, char *config_f
 
 int exchangePlayerCards(Player *player_one, Player *player_two) {
   Card temp_hand_cards = player_one->hand_cards_;
-  player_two->hand_cards_ = player_one->hand_cards_;
-  player_one->hand_cards_ = temp_hand_cards;
+  player_one->hand_cards_ = player_two->hand_cards_;
+  player_two->hand_cards_ = temp_hand_cards;
   return 0;
 }
 
@@ -280,9 +282,59 @@ int actionChoosingPhase(Player *player_one, Player *player_two) {
   printPlayer(player_one);
   printf("What do you want to do?\n");
   printf("P%i> ", player_one->player_id_);
-  char *input = NULL;
-  scanf("%s", input);
-  if (strcmp(input, "quit") == 0) {
+  char input[MAX_INPUT_LENGTH];
+  fgets(input, sizeof(input), stdin);
+
+  // Remove trailing newline character
+  if (input[strlen(input) - 1] == '\n') {
+    input[strlen(input) - 1] = '\0';
+  }
+  // Tokenize the input
+  char* token = strtok(input, " ");
+
+  if (token == NULL) {
+    // Empty command
+    printf("Error: Empty command\n");
+    return 1;
+  }
+
+  if (strcmp(token, "help") == 0) {
+    // Process help command
+    printf("Help command executed\n");
+  } else if (strcmp(token, "place") == 0) {
+    // Process place command
+    // Extract ROW and CARD_NUMBER
+    int row, cardNumber;
+    token = strtok(NULL, " ");
+    if (token == NULL || sscanf(token, "%d", &row) != 1) {
+      printf("Error: Invalid ROW parameter\n");
+      return 1;
+    }
+    token = strtok(NULL, " ");
+    if (token == NULL || sscanf(token, "%d", &cardNumber) != 1) {
+      printf("Error: Invalid CARD_NUMBER parameter\n");
+      return 1;
+    }
+
+    printf("Place command executed with ROW=%d and CARD_NUMBER=%d\n", row, cardNumber);
+  } else if (strcmp(token, "discard") == 0) {
+    // Process discard command
+    // Extract CARD_NUMBER
+    int cardNumber;
+    token = strtok(NULL, " ");
+    if (token == NULL || sscanf(token, "%d", &cardNumber) != 1) {
+      printf("Error: Invalid CARD_NUMBER parameter\n");
+      return 1;
+    }
+
+    printf("Discard command executed with CARD_NUMBER=%d\n", cardNumber);
+  } else if (strcmp(token, "quit") == 0) {
+    // Process quit command
+    printf("Quit command executed\n");
+    // You can add cleanup code or exit the program here
+  } else {
+    // Unrecognized command
+    printf("Error: Unrecognized command\n");
     return 1;
   }
   return 0;
@@ -341,6 +393,17 @@ Card *getCardFromHand(Player *player, int card_number) {
   return NULL;
 }
 
+Card *getCardFromTable(Player *player, int card_number) {
+  Card *head = &player->table_cards_;
+  while (head != NULL) {
+    if (head->value_ == card_number) {
+      return head;
+    }
+    head = head->next_;
+  }
+  return NULL;
+}
+
 int chooseCardToKeep(Player *player) {
   Card *chosen_card;
   int error_occurred = 1;
@@ -362,7 +425,6 @@ int chooseCardToKeep(Player *player) {
       error_occurred = 0;
     }
   } while (error_occurred);
-  printf("You chose: %i_%c\n", chosen_card->value_, chosen_card->color_);
   removeCardFromHand(player, chosen_card);
   addCardToTable(player, chosen_card);
   return 0;
