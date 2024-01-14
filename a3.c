@@ -12,46 +12,65 @@
 const int MAX_CARDS_HAND = 10;
 const int MAX_CARD_ROWS = 20;
 
-struct _Card_
-{
+struct _Card_ {
   char color_;
   int value_;
   struct _Card_ *next_;
 };
 typedef struct _Card_ Card;
 
-struct _Player_
-{
+struct _Player_ {
   int player_id_;
-  Card *hand_cards_;
-  Card *table_cards_;
-  Card **card_rows_;
+  Card hand_cards_; // Only contains the first card of the linked card list
+  Card table_cards_;
+  Card *card_rows_; // An array of linked lists
 };
 typedef struct _Player_ Player;
 
 
 int checkMainArgumentsCount(int argc);
-int checkConfigFile(char *config_file);
 int getPlayersCount(char *config_file);
 void printWelcomeMessage(int players_count);
-Player *createPlayer();
-void assignCardsToPlayers(Player *player_one, Player *player_two, char *config_file);
 void printCardChoosingPhase();
+void printActionPhase();
+
+// File functions
+FILE *openFile(char *config_file);
+int checkConfigFile(char *config_file);
+
+// Card functions
+Card *createCard(char *config_file_line);
+void assignCardsToPlayers(Player *player_one, Player *player_two, char *config_file);
+Card *getCardFromHand(Player *player, int card_number);
+int exchangePlayerCards(Player *player_one, Player *player_two);
+
+// Player functions
+Player *createPlayer();
 void printPlayer(Player *player);
+int addCardToHand(Player *player, Card *card);
+int addCardToTable(Player *player, Card *card);
+int removeCardFromHand(Player *player, Card *card);
+int removeCardFromTable(Player *player, Card *card);
+int addCardToRow(Player *player, Card *card, int row_number);
+
+
+// Ask user input
+int chooseCardToKeep(Player *player);
+int cardChoosingPhase(Player *player_one, Player *player_two);
+int actionChoosingPhase(Player *player_one, Player *player_two);
+
+// Free memory allocation
 void freePlayer(Player *player);
 
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
   // Check if correct number of arguments
-  if (checkMainArgumentsCount(argc) != 0)
-  {
+  if (checkMainArgumentsCount(argc) != 0) {
     return WRONG_ARGUMENT_COUNT;
   }
   // Check if config file is valid
   int config_file_error = checkConfigFile(argv[1]);
-  if (config_file_error != 0)
-  {
+  if (config_file_error != 0) {
     return config_file_error;
   }
   int players_count = getPlayersCount(argv[1]);
@@ -59,46 +78,48 @@ int main(int argc, char *argv[])
   // Create the players
   Player *player_one = createPlayer();
   player_one->player_id_ = 1;
-  if (player_one == NULL)
-  {
+  if (player_one == NULL) {
     return MEMORY_ALLOCATION_ERROR;
   }
   Player *player_two = createPlayer();
   player_two->player_id_ = 2;
-  if (player_two == NULL)
-  {
+  if (player_two == NULL) {
     freePlayer(player_one);
     return MEMORY_ALLOCATION_ERROR;
   }
   // Assign cards to players
   assignCardsToPlayers(player_one, player_two, argv[1]);
   // Start the game
-  int game_over = 0;
   do {
     printCardChoosingPhase();
-    printPlayer(player_one);
-    // TODO: Ask for player input
-    printPlayer(player_two);
-    game_over = 1;
-  } while (!game_over);
+    if (cardChoosingPhase(player_one, player_two) == 1) {
+      break;
+    }
+    exchangePlayerCards(player_one, player_two);
+    printActionPhase();
+    if (actionChoosingPhase(player_one, player_two) == 1) {
+      break;
+    }
+    // TODO: Continue
+
+
+  } while (1);
+  freePlayer(player_one);
+  freePlayer(player_two);
   return 0;
 }
 
-int checkMainArgumentsCount(int argc)
-{
-  if (argc != 2)
-  {
+int checkMainArgumentsCount(int argc) {
+  if (argc != 2) {
     printf("Usage: ./a3 <config file>\n");
     return 1;
   }
   return 0;
 }
 
-FILE *openFile(char *config_file)
-{
+FILE *openFile(char *config_file) {
   FILE *file = fopen(config_file, "r");
-  if (file == NULL)
-  {
+  if (file == NULL) {
     printf("Error: Cannot open file: %s\n", config_file);
     return NULL;
   }
@@ -106,27 +127,23 @@ FILE *openFile(char *config_file)
 }
 
 // Read a single line from the config file at a specific line number and return a string
-char *readLine(FILE *file, int line_number)
-{
+char *readLine(FILE *file, int line_number) {
   // Go to the beginning of the file
   char *line = NULL;
   size_t len = 0;
   fseek(file, 0, SEEK_SET);
   // Read the file line by line until the line number is reached
-  for (int i = 0; i < line_number; i++)
-  {
+  for (int i = 0; i < line_number; i++) {
     getline(&line, &len, file);
   }
   return line;
 
 }
 
-int checkConfigFile(char *config_file)
-{
+int checkConfigFile(char *config_file) {
   // Check if program can open file
   FILE *file = openFile(config_file);
-  if (file == NULL)
-  {
+  if (file == NULL) {
     printf("Error: Cannot open file: %s\n", config_file);
     return CANNOT_OPEN_FILE;
   }
@@ -138,13 +155,11 @@ int checkConfigFile(char *config_file)
   size_t len = 0;
   size_t read;
   read = getline(&line, &len, file);
-  if (read == -1)
-  {
+  if (read == -1) {
     printf("Error: Invalid file: %s\n", config_file);
     return INVALID_FILE;
   }
-  if (strcmp(line, magic_number) != 0)
-  {
+  if (strcmp(line, magic_number) != 0) {
     printf("Error: Invalid file: %s\n", config_file);
     return INVALID_FILE;
   }
@@ -152,8 +167,7 @@ int checkConfigFile(char *config_file)
   return 0;
 }
 
-int getPlayersCount(char *config_file)
-{
+int getPlayersCount(char *config_file) {
   // The number of players is defined in the second line of the file
   FILE *file = openFile(config_file);
   char *line = readLine(file, 2);
@@ -161,53 +175,30 @@ int getPlayersCount(char *config_file)
   return players_count;
 }
 
-void printWelcomeMessage(int players_count)
-{
+void printWelcomeMessage(int players_count) {
   printf("Welcome to SyntaxSakura (%i players are playing)!\n", players_count);
   printf("\n");
 }
 
-Player *createPlayer()
-{
+Player *createPlayer() {
   Player *player = malloc(sizeof(Player));
-  if (player == NULL)
-  {
+  if (player == NULL) {
     printf("Error: Memory allocation error\n");
     return NULL;
   }
-  player->hand_cards_ = malloc(sizeof(Card) * MAX_CARDS_HAND);
-  if (player->hand_cards_ == NULL)
-  {
+  player->card_rows_ = malloc(sizeof(Card) * MAX_CARDS_HAND);
+  if (player->card_rows_ == NULL) {
     printf("Error: Out of memory\n");
     freePlayer(player);
     return NULL;
   }
-  player->table_cards_ = malloc(sizeof(Card) * MAX_CARDS_HAND);
-  if (player->table_cards_ == NULL)
-  {
-    printf("Error: Out of memory\n");
-    freePlayer(player);
-    return NULL;
-  }
-  player->card_rows_ = malloc(sizeof(Card *) * MAX_CARDS_HAND);
-  if (player->card_rows_ == NULL)
-  {
-    printf("Error: Out of memory\n");
-    freePlayer(player);
-    return NULL;
-  }
-  player->hand_cards_ = NULL;
-  player->table_cards_ = NULL;
-  player->card_rows_ = NULL;
   return player;
 }
 
 // Create a card from a line in the config file
-Card *createCard(char *config_file_line)
-{
+Card *createCard(char *config_file_line) {
   Card *card = malloc(sizeof(Card));
-  if (card == NULL)
-  {
+  if (card == NULL) {
     printf("Error: Memory allocation error\n");
     return NULL;
   }
@@ -222,99 +213,111 @@ Card *createCard(char *config_file_line)
   return card;
 }
 
-void assignCardsToPlayers(Player *player_one, Player *player_two, char *config_file)
-{
+void assignCardsToPlayers(Player *player_one, Player *player_two, char *config_file) {
   // We start reading the config file from line 3 and assign each card in an alternating fashion to each player
   // The first card is assigned to player one, the second card to player two, the third card to player one, etc.
   // Each player gets exactly 10 cards
   FILE *file = openFile(config_file);
-  for (int i = 3; i < 23; i++)
-  {
+  for (int i = 3; i < 23; i++) {
     char *line = readLine(file, i);
     Card *card = createCard(line);
-    if (i % 2 == 0)
-    {
+    if (i % 2 != 0) {
       // Assign card to player one
-      player_one->hand_cards_[i / 2 - 1] = *card;
-      // Add the card to the previous card next pointer
-      if (i > 3)
-      {
-        player_one->hand_cards_[i / 2 - 2].next_ = card;
-      }
-    }
-    else
-    {
-      // Assign card to player two
-      player_two->hand_cards_[i / 2] = *card;
-      // Add the card to the previous card next pointer
-      if (i > 3)
-      {
-        player_two->hand_cards_[i / 2 - 1].next_ = card;
-      }
+      addCardToHand(player_one, card);
+    } else {
+      addCardToHand(player_two, card);
     }
   }
 }
 
-void printCardChoosingPhase()
-{
-  printf(" -------------------\n");
+int exchangePlayerCards(Player *player_one, Player *player_two) {
+  Card temp_hand_cards = player_one->hand_cards_;
+  player_two->hand_cards_ = player_one->hand_cards_;
+  player_one->hand_cards_ = temp_hand_cards;
+  return 0;
+}
+
+void printCardChoosingPhase() {
+  printf("-------------------\n");
   printf("CARD CHOOSING PHASE\n");
-  printf(" -------------------\n");
+  printf("-------------------\n");
   printf("\n");
 }
 
-void printPlayer(Player *player)
-{
+void printActionPhase() {
+  printf("------------\n");
+  printf("ACTION PHASE\n");
+  printf("------------\n");
+  printf("\n");
+}
+
+int cardChoosingPhase(Player *player_one, Player *player_two) {
+  printPlayer(player_one);
+  printf("Please choose a first card to keep:\n");
+  if (chooseCardToKeep(player_one) == 1) {
+    return 1;
+  }
+  printf("Please choose a second card to keep:\n");
+  if (chooseCardToKeep(player_one) == 1) {
+    return 1;
+  }
+  printPlayer(player_two);
+  printf("Please choose a first card to keep:\n");
+  if (chooseCardToKeep(player_two) == 1) {
+    return 1;
+  }
+  printf("Please choose a second card to keep:\n");
+  if (chooseCardToKeep(player_two) == 1) {
+    return 1;
+  }
+  printf("Card choosing phase is over - passing remaining hand cards to the next player!\n");
+  return 0;
+}
+
+int actionChoosingPhase(Player *player_one, Player *player_two) {
+  printPlayer(player_one);
+  printf("What do you want to do?\n");
+  printf("P%i> ", player_one->player_id_);
+  char *input = NULL;
+  scanf("%s", input);
+  if (strcmp(input, "quit") == 0) {
+    return 1;
+  }
+  return 0;
+}
+
+void printPlayer(Player *player) {
   printf("Player %i:\n", player->player_id_);
   printf("  hand cards:\n");
-  Card *head = &player->hand_cards_[0];
-  while (head != NULL)
-  {
-    if (head->next_ != NULL)
-    {
+  Card *head = &player->hand_cards_;
+  while (head != NULL) {
+    if (head->next_ != NULL) {
       printf("%i_%c ", head->value_, head->color_);
-    }
-    else
-    {
+    } else {
       printf("%i_%c\n", head->value_, head->color_);
     }
     head = head->next_;
   }
   printf("  chosen cards:\n");
-  *head = player->table_cards_[0];
-  while (head != NULL)
-  {
-    if (head->next_ != NULL)
-    {
+  *head = player->table_cards_;
+  while (head != NULL) {
+    if (head->next_ != NULL) {
       printf("%i_%c ", head->value_, head->color_);
-    }
-    else
-    {
+    } else {
       printf("%i_%c\n", head->value_, head->color_);
     }
     head = head->next_;
   }
   printf("Player card rows:\n");
-  if (player->card_rows_[0] == NULL)
-  {
-    printf("Empty\n");
-  }
-  else
-  {
-    for (int i = 0; i < MAX_CARD_ROWS; i++)
-    {
-      if (player->card_rows_[i] != NULL)
-      {
+  if (player->card_rows_ != NULL) {
+    for (int i = 0; i < MAX_CARD_ROWS; i++) {
+      if (player->card_rows_[i].color_ != '\0') {
         printf("  row_%i: ", i);
-        *head = player->card_rows_[i][0];
-        while (head != NULL)
-        {
-          if (head->next_ != NULL)
-          {
+        *head = player->card_rows_[i];
+        while (head != NULL) {
+          if (head->next_ != NULL) {
             printf("%i_%c ", head->value_, head->color_);
-          }
-          else
-          {
+          } else {
             printf("%i_%c\n", head->value_, head->color_);
           }
           head = head->next_;
@@ -325,16 +328,142 @@ void printPlayer(Player *player)
   }
 }
 
-void freePlayer(Player *player)
-{
-  for (int i = 0; i < MAX_CARDS_HAND; i++)
-  {
-    free(&player->hand_cards_[i]);
-    free(&player->table_cards_[i]);
-    free(&player->card_rows_[i]);
+Card *getCardFromHand(Player *player, int card_number) {
+  Card *head = &player->hand_cards_;
+  while (head != NULL) {
+    if (head->value_ == card_number) {
+      return head;
+    }
+    head = head->next_;
   }
-  free(player->hand_cards_);
-  free(player->table_cards_);
-  free(player->card_rows_);
+  return NULL;
+}
+
+int chooseCardToKeep(Player *player) {
+  Card *chosen_card;
+  int error_occurred = 1;
+  do {
+    int card_number;
+    printf("P%i> ", player->player_id_);
+    char *input = NULL;
+    scanf("%s", input);
+    if (strcmp(input, "quit") == 0) {
+      return 1;
+    }
+    card_number = atoi(input);
+    chosen_card = getCardFromHand(player, card_number);
+    if (chosen_card == NULL) {
+      printf("Please enter the number of a card in your hand cards!\n");
+    } else {
+      error_occurred = 0;
+    }
+  } while (error_occurred);
+  addCardToTable(player, chosen_card);
+  return 0;
+}
+
+int addCardToTable(Player *player, Card *card) {
+  Card *head = &player->table_cards_;
+  if (head == NULL) {
+    player->table_cards_ = *card;
+    return 0;
+  }
+  while (head != NULL) {
+    if (head->next_ == NULL) {
+      head->next_ = card;
+      card->next_ = NULL;
+      return 0;
+    }
+    head = head->next_;
+  }
+  return 1;
+}
+
+int removeCardFromTable(Player *player, Card *card) {
+  Card *head = &player->table_cards_;
+  if (head == NULL) {
+    return 1;
+  }
+  while (head != NULL) {
+    if (head->next_ == card) {
+      head->next_ = card->next_;
+      return 0;
+    }
+    head = head->next_;
+  }
+  return 1;
+}
+
+int addCardToHand(Player *player, Card *card) {
+  Card *head = &player->hand_cards_;
+  if (head == NULL) {
+    player->hand_cards_ = *card;
+    return 0;
+  }
+  while (head != NULL) {
+    if (head->next_ == NULL) {
+      head->next_ = card;
+      card->next_ = NULL;
+      return 0;
+    }
+    head = head->next_;
+  }
+  return 1;
+}
+
+int removeCardFromHand(Player *player, Card *card) {
+  Card *head = &player->hand_cards_;
+  if (head == NULL) {
+    return 1;
+  }
+  while (head != NULL) {
+    if (head->next_ == card) {
+      head->next_ = card->next_;
+      return 0;
+    }
+    head = head->next_;
+  }
+  return 1;
+}
+
+int addCardToRow(Player *player, Card *card, int row_number) {
+  Card *head = &player->card_rows_[row_number];
+  if (head == NULL) {
+    player->card_rows_[row_number] = *card;
+    return 0;
+  }
+  while (head != NULL) {
+    if (head->next_ == NULL) {
+      head->next_ = card;
+      card->next_ = NULL;
+      return 0;
+    }
+    head = head->next_;
+  }
+  return 1;
+}
+
+
+void freePlayer(Player *player) {
+  Card *head = &player->hand_cards_;
+  while (head != NULL) {
+    Card *next = head->next_;
+    free(head);
+    head = next;
+  }
+  head = &player->table_cards_;
+  while (head != NULL) {
+    Card *next = head->next_;
+    free(head);
+    head = next;
+  }
+  for (int i = 0; i < MAX_CARD_ROWS; i++) {
+    head = &player->card_rows_[i];
+    while (head != NULL) {
+      Card *next = head->next_;
+      free(head);
+      head = next;
+    }
+  }
   free(player);
 }
