@@ -1,5 +1,4 @@
-#define  _GNU_SOURCE
-
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,11 +51,11 @@ int sortCards(Card **player_cards);
 // Player functions
 void printPlayer(int player_id, Card **player_handcards, Card **player_chosencards, Card ***player_cardrows);
 int addCardToHand(Card **player_handcards, Card *card);
-int addCardToChosen(Card **player_chosencards, Card *card);
+void addCardToChosen(Card **player_chosencards, Card *card);
 int removeCardFromHand(Card **player_handcards, Card *card);
 int removeCardFromChosen(Card **player_chosencards, Card *card);
 int addCardToRow(Card **player_cardrows, Card *card, int row_number);
-
+int calculatePlayerPoints(Card ***player_cardrows);
 
 // Ask user input
 int chooseCardToKeep(int player_id, Card **player_handcards, Card **player_chosencards);
@@ -64,10 +63,14 @@ int cardChoosingPhase(Card **player_one_handcards, Card **player_one_chosencards
                       Card **player_two_handcards, Card **player_two_chosencards, Card ***player_two_cardrows);
 int actionChoosingPhase(Card **player_one_handcards, Card **player_one_chosencards, Card ***player_one_cardrows,
                         Card **player_two_handcards, Card **player_two_chosencards, Card ***player_two_cardrows);
-int isActionInputCorrect(char *row_number, char *card_number);
+int isActionInputCorrect(char *row_number, const char *card_number);
 int actionChoosingLoop(int player_id, Card **player_handcards, Card **player_chosencards, Card ***player_cardrows);
 
 void freePlayer(Card *player_handcards, Card *player_chosencards, Card **player_cardrows);
+
+
+void printPlayerPoints(char *config_file, Card ***player_one_cardrows, Card ***player_two_cardrows);
+void writePlayerPointsToFile(char *config_file, int player_one_points, int player_two_points);
 
 
 int main(int argc, char *argv[]) {
@@ -108,17 +111,22 @@ int main(int argc, char *argv[]) {
   // Sort the cards in the hand cards of each player
   sortCards(&player_one_handcards);
   sortCards(&player_two_handcards);
+  bool break_early = false;
   // Start the game
   do {
     printCardChoosingPhase();
     if (cardChoosingPhase(&player_one_handcards, &player_one_chosencards, &player_one_cardrows,
-                          &player_two_handcards, &player_two_chosencards, &player_two_cardrows) == 1) {
+                          &player_two_handcards, &player_two_chosencards, &player_two_cardrows) == 1)
+    {
+      break_early = true;
       break;
     }
     exchangePlayerCards(&player_one_handcards, &player_two_handcards);
     printActionPhase();
     if (actionChoosingPhase(&player_one_handcards, &player_one_chosencards, &player_one_cardrows,
-                            &player_two_handcards, &player_two_chosencards, &player_two_cardrows) == 1) {
+                            &player_two_handcards, &player_two_chosencards, &player_two_cardrows) == 1)
+    {
+      break_early = true;
       break;
     }
     // If the player one has no handcards and no chosencards, or the player two has no handcards and no chosencards,
@@ -126,9 +134,54 @@ int main(int argc, char *argv[]) {
 
   } while ((player_one_handcards != NULL || player_one_chosencards != NULL) &&
            (player_two_handcards != NULL || player_two_chosencards != NULL));
+
+  // Calculate the points for each player
+  if (!break_early) {
+    printf("\n");
+    printPlayerPoints(argv[1], &player_one_cardrows, &player_two_cardrows);
+  }
+
   freePlayer(player_one_handcards, player_one_chosencards, player_one_cardrows);
   freePlayer(player_two_handcards, player_two_chosencards, player_two_cardrows);
   return 0;
+}
+
+void printPlayerPoints(char *config_file, Card ***player_one_cardrows, Card ***player_two_cardrows) {
+  int player_one_points = calculatePlayerPoints(player_one_cardrows);
+  int player_two_points = calculatePlayerPoints(player_two_cardrows);
+  if (player_one_points < player_two_points) {
+    printf("Player 2: %i points\n", player_two_points);
+    printf("Player 1: %i points\n", player_one_points);
+    printf("\n");
+    printf("Congratulations! Player 2 wins the game!\n");
+  } else {
+    printf("Player 1: %i points\n", player_one_points);
+    printf("Player 2: %i points\n", player_two_points);
+    printf("\n");
+    printf("Congratulations! Player 1 wins the game!\n");
+  }
+  writePlayerPointsToFile(config_file, player_one_points, player_two_points);
+}
+
+void writePlayerPointsToFile(char *config_file, int player_one_points, int player_two_points) {
+  FILE *file = fopen(config_file, "a");
+  if (file == NULL) {
+    printf("Error: Cannot open file: %s\n", config_file);
+    return;
+  }
+  if (player_one_points < player_two_points) {
+    fprintf(file, "\n");
+    fprintf(file, "Player 2: %i points\n", player_two_points);
+    fprintf(file, "Player 1: %i points\n", player_one_points);
+    fprintf(file, "\n");
+    fprintf(file, "Congratulations! Player 2 wins the game!\n");
+  } else {
+    fprintf(file, "Player 1: %i points\n", player_one_points);
+    fprintf(file, "Player 2: %i points\n", player_two_points);
+    fprintf(file, "\n");
+    fprintf(file, "Congratulations! Player 1 wins the game!\n");
+  }
+  fclose(file);
 }
 
 int checkMainArgumentsCount(int argc) {
@@ -173,7 +226,7 @@ int checkConfigFile(char *config_file) {
   size_t len = 0;
   size_t read;
   read = getline(&line, &len, file);
-  if (read == -1) { // TODO: warning: comparison of integers of different signs: 'size_t' (aka 'unsigned long') and 'int' [-Wsign-compare]
+  if (read == (size_t)-1) { // TODO: warning: comparison of integers of different signs: 'size_t' (aka 'unsigned long') and 'int' [-Wsign-compare]
     printf("Error: Invalid file: %s\n", config_file);
     return INVALID_FILE;
   }
@@ -309,6 +362,8 @@ void printPlayer(int player_id, Card **player_handcards, Card **player_chosencar
   Card *head = *player_handcards;
   if (head != NULL && head->color_ != '\0') {
     printf(" ");
+  } else {
+    printf("\n");
   }
   while (head != NULL && head->color_ != '\0') {
     if (head->next_ != NULL) {
@@ -415,11 +470,11 @@ int chooseCardToKeep(int player_id, Card **player_handcards, Card **player_chose
   return 0;
 }
 
-int addCardToChosen(Card **player_chosencard, Card *card) {
+void addCardToChosen(Card **player_chosencard, Card *card) {
   if (*player_chosencard == NULL || (*player_chosencard)->color_ == '\0') {
     *player_chosencard = card;
     (*player_chosencard)->next_ = NULL;
-    return 0;
+    return;
   }
 
   Card *head = *player_chosencard;
@@ -439,8 +494,6 @@ int addCardToChosen(Card **player_chosencard, Card *card) {
     prev->next_ = card;
     card->next_ = head;
   }
-
-  return 0;
 }
 
 
@@ -603,7 +656,7 @@ int actionChoosingPhase(Card **player_one_handcards, Card **player_one_chosencar
   return 0;
 }
 
-int isActionInputCorrect(char *row_number, char *card_number) {
+int isActionInputCorrect(char *row_number, const char *card_number) {
   if ((row_number == NULL || card_number == NULL) || strtok(NULL, " ") != NULL) {
     printf("Please enter the correct number of parameters!\n");
     return false;
@@ -659,8 +712,7 @@ int actionChoosingLoop(int player_id, Card **player_handcards, Card **player_cho
         free(input);
         continue;
       }
-    }
-    else if (strncmp(input, "discard", 7) == 0 && strlen(input) > 7) {
+    } else if (strncmp(input, "discard", 7) == 0 && strlen(input) > 7) {
       char *card_number = strtok(input + 7, " ");
       if (card_number == NULL || strtok(NULL, " ") != NULL) {
         printf("Please enter the correct number of parameters!\n");
@@ -679,8 +731,29 @@ int actionChoosingLoop(int player_id, Card **player_handcards, Card **player_cho
         printf("\n");
         printPlayer(player_id, player_handcards, player_chosencards, player_cardrows);
       }
-  } else {
+    }
+    else if (strcmp(input, "help") == 0) {
+      printf("\n"
+             "Available commands:\n"
+             "\n"
+             "- help\n"
+             "  Display this help message.\n"
+             "\n"
+             "- place <row number> <card number>\n"
+             "  Append a card to the chosen row or if the chosen row does not exist create it.\n"
+             "\n"
+             "- discard <card number>\n"
+             "  Discard a card from the chosen cards.\n"
+             "\n"
+             "- quit\n"
+             "  Terminate the program.\n"
+             "\n");
+      printf("\n");
+      printPlayer(player_id, player_handcards, player_chosencards, player_cardrows);
+      free(input);
+  }  else {
       printf("Please enter the correct number of parameters!\n");
+      skip_prompt = true;
       free(input);
       continue;
     }
@@ -688,6 +761,43 @@ int actionChoosingLoop(int player_id, Card **player_handcards, Card **player_cho
     free(input);
   } while (*player_chosencards != NULL);
   return 0;
+}
+
+int calculatePlayerPoints(Card ***player_cardrows) {
+  int points = 0;
+  int longest_row_length = 0;
+  for (int i = 0; i < MAX_CARD_ROWS; i++) {
+    int row_length = 0;
+    Card *head = (*player_cardrows)[i];
+    while (head != NULL) {
+      row_length++;
+      head = head->next_;
+    }
+    if (row_length > longest_row_length) {
+      longest_row_length = row_length;
+    }
+  }
+for (int i = 0; i < MAX_CARD_ROWS; i++) {
+    int row_length = 0;
+    Card *head = (*player_cardrows)[i];
+    while (head != NULL) {
+      row_length++;
+      if (head->color_ == RED) {
+        points += 10;
+      } else if (head->color_ == WHITE) {
+        points += 7;
+      } else if (head->color_ == GREEN) {
+        points += 4;
+      } else if (head->color_ == BLUE) {
+        points += 3;
+      }
+      head = head->next_;
+    }
+    if (row_length == longest_row_length) {
+      points *= 2;
+    }
+  }
+  return points;
 }
 
 void freePlayer(Card *player_handcards, Card *player_chosencards, Card **player_cardrows) {
