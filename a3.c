@@ -90,20 +90,15 @@ int actionChoosingPhase(Card **player_one_handcards, Card **player_one_chosencar
                         Card **player_two_handcards, Card **player_two_chosencards, Card ***player_two_cardrows);
 int isActionInputCorrect(char *row_number, const char *card_number);
 int actionChoosingLoop(int player_id, Card **player_handcards, Card **player_chosencards, Card ***player_cardrows);
-
-void freePlayer(Card *player_handcards, Card *player_chosencards, Card **player_cardrows);
-
+void freePlayer(Card **player_handcards, Card **player_chosencards, Card ***player_cardrows);
 void printPlayerPoints(char *config_file, Card ***player_one_cardrows, Card ***player_two_cardrows);
 void writePlayerPointsToFile(char *config_file, int player_one_points, int player_two_points);
-
 void printPlayerHandCards(Card *const *player_handcards);
 void printPlayerChosenCards(Card *const *player_chosencards);
-
 void printPlayerCardRows(Card **const *player_cardrows);
-
 void helpAction(int player_id, Card **player_handcards, Card **player_chosencards, Card ***player_cardrows);
-
 void singleRowPointsCount(Card *head, int *points, int *row_length);
+void freeLinkedList(Card* head);
 
 //---------------------------------------------------------------------------------------------------------------------
 ///
@@ -142,14 +137,14 @@ int main(int argc, char *argv[])
   printWelcomeMessage(players_count);
   Card *player_one_handcards = NULL;
   Card *player_one_chosencards = NULL;
-  Card **player_one_cardrows = malloc(sizeof(Card) * MAX_CARD_ROWS);
+  Card **player_one_cardrows = malloc(sizeof(Card**) * MAX_CARD_ROWS);
   if (player_one_cardrows == NULL)
   {
     return MEMORY_ALLOCATION_ERROR;
   }
   Card *player_two_handcards = NULL;
   Card *player_two_chosencards = NULL;
-  Card **player_two_cardrows = malloc(sizeof(Card) * MAX_CARD_ROWS);
+  Card **player_two_cardrows = malloc(sizeof(Card**) * MAX_CARD_ROWS);
   if (player_two_cardrows == NULL)
   {
     free(player_one_cardrows);
@@ -176,6 +171,8 @@ int main(int argc, char *argv[])
     if (cardChoosingPhase(&player_one_handcards, &player_one_chosencards, &player_one_cardrows,
                           &player_two_handcards, &player_two_chosencards, &player_two_cardrows) == 1)
     {
+      freePlayer(&player_one_handcards, &player_one_chosencards, &player_one_cardrows);
+      freePlayer(&player_two_handcards, &player_two_chosencards, &player_two_cardrows);
       break_early = true;
       break;
     }
@@ -184,6 +181,8 @@ int main(int argc, char *argv[])
     if (actionChoosingPhase(&player_one_handcards, &player_one_chosencards, &player_one_cardrows,
                             &player_two_handcards, &player_two_chosencards, &player_two_cardrows) == 1)
     {
+      freePlayer(&player_one_handcards, &player_one_chosencards, &player_one_cardrows);
+      freePlayer(&player_two_handcards, &player_two_chosencards, &player_two_cardrows);
       break_early = true;
       break;
     }
@@ -193,9 +192,9 @@ int main(int argc, char *argv[])
   {
     printf("\n");
     printPlayerPoints(argv[1], &player_one_cardrows, &player_two_cardrows);
+    freePlayer(&player_one_handcards, &player_one_chosencards, &player_one_cardrows);
+    freePlayer(&player_two_handcards, &player_two_chosencards, &player_two_cardrows);
   }
-  freePlayer(player_one_handcards, player_one_chosencards, player_one_cardrows);
-  freePlayer(player_two_handcards, player_two_chosencards, player_two_cardrows);
   return 0;
 }
 
@@ -265,6 +264,8 @@ void writePlayerPointsToFile(char *config_file, int player_one_points, int playe
     fprintf(file, "Congratulations! Player 1 wins the game!\n");
   }
   fclose(file);
+  free(file);
+  file = NULL;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -328,7 +329,10 @@ char *readLine(FILE *file, int line_number)
   {
     getline(&line, &len, file);
   }
-  return line;
+  char *result = strdup(line);
+  free(line);
+  line = NULL;
+  return result;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -352,11 +356,12 @@ int checkConfigFile(char *config_file)
   char *magic_number = "ESP\n";
   char *line = NULL;
   size_t len = 0;
-  size_t read;
+  ssize_t read;
   read = getline(&line, &len, file);
-  if (read == (size_t)-1)
+  if (read == -1)
   {
     printf("Error: Invalid file: %s\n", config_file);
+    fclose(file);
     free(line);
     return INVALID_FILE;
   }
@@ -364,9 +369,11 @@ int checkConfigFile(char *config_file)
   {
     printf("Error: Invalid file: %s\n", config_file);
     free(line);
+    fclose(file);
     return INVALID_FILE;
   }
   free(line);
+  fclose(file);
   return 0;
 }
 
@@ -391,6 +398,8 @@ int getPlayersCount(char *config_file)
   }
   char *line = readLine(file, 2);
   int players_count = atoi(line);
+  free(line);
+  fclose(file);
   return players_count;
 }
 
@@ -498,22 +507,25 @@ int assignCardsToPlayers(Card **player_one_handcards, Card **player_two_handcard
   for (int i = CONFIG_CARDS_LINE_START; i < CONFIG_CARDS_LINE_END; i++)
   {
     char *line = readLine(file, i);
-    Card *card = createCard(line);
-    if (card == NULL)
+    Card *temp_card = createCard(line);
+    if (temp_card == NULL)
     {
       free(line);
+      fclose(file);
       return MEMORY_ALLOCATION_ERROR;
     }
     if (i % 2 != 0)
     {
       // Assign card to player one
-      addCardToHand(player_one_handcards, card);
+      addCardToHand(player_one_handcards, temp_card);
     }
     else
     {
-      addCardToHand(player_two_handcards, card);
+      addCardToHand(player_two_handcards, temp_card);
     }
+    free(line);
   }
+  fclose(file);
   return 0;
 }
 
@@ -587,15 +599,11 @@ int cardChoosingPhase(Card **player_one_handcards, Card **player_one_chosencards
   printf("Please choose a first card to keep:\n");
   if (chooseCardToKeep(1, player_one_handcards, player_one_chosencards) == 1)
   {
-    freePlayer(*player_one_handcards, *player_one_chosencards, *player_one_cardrows);
-    freePlayer(*player_two_handcards, *player_two_chosencards, *player_two_cardrows);
     return 1;
   }
   printf("Please choose a second card to keep:\n");
   if (chooseCardToKeep(1, player_one_handcards, player_one_chosencards) == 1)
   {
-    freePlayer(*player_one_handcards, *player_one_chosencards, *player_one_cardrows);
-    freePlayer(*player_two_handcards, *player_two_chosencards, *player_two_cardrows);
     return 1;
   }
   printf("\n");
@@ -603,15 +611,11 @@ int cardChoosingPhase(Card **player_one_handcards, Card **player_one_chosencards
   printf("Please choose a first card to keep:\n");
   if (chooseCardToKeep(2, player_two_handcards, player_two_chosencards) == 1)
   {
-    freePlayer(*player_one_handcards, *player_one_chosencards, *player_one_cardrows);
-    freePlayer(*player_two_handcards, *player_two_chosencards, *player_two_cardrows);
     return 1;
   }
   printf("Please choose a second card to keep:\n");
   if (chooseCardToKeep(2, player_two_handcards, player_two_chosencards) == 1)
   {
-    freePlayer(*player_one_handcards, *player_one_chosencards, *player_one_cardrows);
-    freePlayer(*player_two_handcards, *player_two_chosencards, *player_two_cardrows);
     return 1;
   }
   printf("\n");
@@ -675,7 +679,6 @@ void printPlayerCardRows(Card **const *player_cardrows)
       }
     }
   }
-  free(head);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -711,7 +714,6 @@ void printPlayerChosenCards(Card *const *player_chosencards)
     }
     head = head->next_;
   }
-  free(head);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -747,7 +749,6 @@ void printPlayerHandCards(Card *const *player_handcards)
     }
     head = head->next_;
   }
-  free(head);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -772,7 +773,6 @@ Card *getCardFromHand(Card *player_handcards, int card_number)
     }
     head = head->next_;
   }
-  free(head);
   return NULL;
 }
 
@@ -798,7 +798,6 @@ Card *getCardFromChosen(Card *player_chosencards, int card_number)
     }
     head = head->next_;
   }
-  free(head);
   return NULL;
 }
 
@@ -834,7 +833,6 @@ int chooseCardToKeep(int player_id, Card **player_handcards, Card **player_chose
     if (strcmp(input, "quit") == 0)
     {
       free(input);
-      free(chosen_card);
       return 1;
     }
     else if (strncmp(input, "quit", 4) == 0 && strlen(input) > 4)
@@ -861,12 +859,17 @@ int chooseCardToKeep(int player_id, Card **player_handcards, Card **player_chose
       free(input);
       break;
     }
-    // Free the input from the heap
     free(input);
   } while (true);
-  removeCardFromHand(player_handcards, chosen_card);
-  addCardToChosen(player_chosencards, chosen_card);
-  free(chosen_card);
+  if (chosen_card != NULL)
+  {
+    removeCardFromHand(player_handcards, chosen_card);
+    addCardToChosen(player_chosencards, chosen_card);
+  }
+  else
+  {
+    printf("Error: Chosen card is NULL\n");
+  }
   return 0;
 }
 
@@ -907,8 +910,6 @@ void addCardToChosen(Card **player_chosencard, Card *card)
     prev->next_ = card;
     card->next_ = head;
   }
-  free(head);
-  free(prev);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -944,10 +945,8 @@ int removeCardFromChosen(Card **player_chosencards, Card *card)
   {
     head->next_ = card->next_;
     card->next_ = NULL;
-    free(head);
     return 0;
   }
-  free(head);
   return 1;
 }
 
@@ -970,7 +969,6 @@ int addCardToHand(Card **player_handcards, Card *card)
   {
     *player_handcards = card;
     (*player_handcards)->next_ = NULL;
-    free(head);
     return 0;
   }
   while (head != NULL)
@@ -979,12 +977,10 @@ int addCardToHand(Card **player_handcards, Card *card)
     {
       head->next_ = card;
       card->next_ = NULL;
-      free(head);
       return 0;
     }
     head = head->next_;
   }
-  free(head);
   return 1;
 }
 
@@ -1021,10 +1017,8 @@ int removeCardFromHand(Card **player_handcards, Card *card)
   {
     head->next_ = card->next_;
     card->next_ = NULL;
-    free(head);
     return 0;
   }
-  free(head);
   return 1;
 }
 
@@ -1056,8 +1050,6 @@ int addCardToRow(Card **player_cardrows, Card *card, int row_number)
   {
     card->next_ = current;
     player_cardrows[row_number] = card;
-    free(prev);
-    free(current);
     return 0;
   }
   while (current != NULL && card->value_ > current->value_)
@@ -1068,12 +1060,8 @@ int addCardToRow(Card **player_cardrows, Card *card, int row_number)
   if (current == NULL)
   {
     prev->next_ = card;
-    free(prev);
-    free(current);
     return 0;
   }
-  free(prev);
-  free(current);
   return 1;
 }
 
@@ -1129,8 +1117,6 @@ int sortCards(Card **player_cards)
     }
     lptr = ptr1;
   } while (swapped);
-  free(ptr1);
-  free(lptr);
   return 0;
 }
 
@@ -1242,6 +1228,7 @@ int actionChoosingLoop(int player_id, Card **player_handcards, Card **player_cho
     {
      if (placeAction(input, &skip_prompt, player_id, player_handcards, player_chosencards, player_cardrows) == 1)
      {
+       free(input);
        continue;
      }
     }
@@ -1249,13 +1236,13 @@ int actionChoosingLoop(int player_id, Card **player_handcards, Card **player_cho
     {
       if (discardAction(input, &skip_prompt, player_id, player_handcards, player_chosencards, player_cardrows) == 1)
       {
+        free(input);
         continue;
       }
     }
     else if (strcmp(input, "help") == 0)
     {
       helpAction(player_id, player_handcards, player_chosencards, player_cardrows);
-      free(input);
     }
     else
     {
@@ -1321,32 +1308,35 @@ void helpAction(int player_id, Card **player_handcards, Card **player_chosencard
 int placeAction(char *input, bool *skip_prompt, int player_id, Card **player_handcards,
                 Card **player_chosencards, Card ***player_cardrows)
 {
-  char *row_number = strtok(input + 5, " ");
+  char *input_copy = strdup(input);
+  if (input_copy == NULL) {
+    printf("Error: Memory allocation failure\n");
+    return 1;
+  }
+  char *row_number = strtok(input_copy + 5, " ");
   char *card_number = strtok(NULL, " ");
   if (isActionInputCorrect(row_number, card_number))
   {
-    Card *choosen_card = getCardFromChosen(*player_chosencards, atoi(card_number));
+    int card_number_int = atoi(card_number);
+    Card *choosen_card = getCardFromChosen(*player_chosencards, card_number_int);
     if (choosen_card == NULL)
     {
       printf("Please enter the number of a card in your chosen cards!\n");
       *skip_prompt = true;
-      free(row_number);
-      free(card_number);
-      free(input);
+      free(input_copy);
       return 1;
     }
     else
     {
       removeCardFromChosen(player_chosencards, choosen_card);
-      int resu = addCardToRow(*player_cardrows, choosen_card, atoi(row_number) - 1);
-      if (resu == 1)
+      int row_number_int = atoi(row_number) - 1;
+      int result = addCardToRow(*player_cardrows, choosen_card, row_number_int);
+      if (result == 1)
       {
         printf("This card cannot extend the chosen row!\n");
         *skip_prompt = true;
         addCardToChosen(player_chosencards, choosen_card);
-        free(row_number);
-        free(card_number);
-        free(input);
+        free(input_copy);
         return 1;
       }
       printf("\n");
@@ -1356,14 +1346,9 @@ int placeAction(char *input, bool *skip_prompt, int player_id, Card **player_han
   else
   {
     *skip_prompt = true;
-    free(row_number);
-    free(card_number);
-    free(input);
     return 1;
   }
-  free(row_number);
-  free(card_number);
-  free(input);
+  free(input_copy);
   return 0;
 }
 
@@ -1391,8 +1376,6 @@ int discardAction(char *input, bool *skip_prompt, int player_id, Card **player_h
   {
     printf("Please enter the correct number of parameters!\n");
     *skip_prompt = true;
-    free(card_number);
-    free(input);
     return 1;
   }
   Card *choosen_card = getCardFromChosen(*player_chosencards, atoi(card_number));
@@ -1400,8 +1383,6 @@ int discardAction(char *input, bool *skip_prompt, int player_id, Card **player_h
   {
     printf("Please enter the number of a card in your chosen cards!\n");
     *skip_prompt = true;
-    free(card_number);
-    free(input);
     return 1;
   }
   else
@@ -1410,8 +1391,6 @@ int discardAction(char *input, bool *skip_prompt, int player_id, Card **player_h
     printf("\n");
     printPlayer(player_id, player_handcards, player_chosencards, player_cardrows);
   }
-  free(card_number);
-  free(input);
   return 0;
 }
 
@@ -1441,7 +1420,6 @@ int calculatePlayerPoints(Card ***player_cardrows)
     {
       longest_row_length = row_length;
     }
-    free(head);
   }
   for (int i = 0; i < MAX_CARD_ROWS; i++)
   {
@@ -1452,7 +1430,6 @@ int calculatePlayerPoints(Card ***player_cardrows)
     {
       points *= 2;
     }
-    free(head);
   }
   return points;
 }
@@ -1504,31 +1481,32 @@ void singleRowPointsCount(Card *head, int *points, int *row_length)
 ///
 /// @return void
 //
-void freePlayer(Card *player_handcards, Card *player_chosencards, Card **player_cardrows)
+void freePlayer(Card **player_handcards, Card **player_chosencards, Card ***player_cardrows)
 {
-  Card *head = player_handcards;
-  while (head != NULL)
-  {
-    Card *temp = head;
-    head = head->next_;
-    free(temp);
-  }
-  head = player_chosencards;
-  while (head != NULL)
-  {
-    Card *temp = head;
-    head = head->next_;
-    free(temp);
-  }
+  freeLinkedList(*player_handcards);
+  *player_handcards = NULL;
+
+  freeLinkedList(*player_chosencards);
+  *player_chosencards = NULL;
+
   for (int i = 0; i < MAX_CARD_ROWS; i++)
   {
-    head = player_cardrows[i];
-    while (head != NULL)
-    {
-      Card *temp = head;
-      head = head->next_;
-      free(temp);
-    }
+    freeLinkedList((*player_cardrows)[i]);
+    (*player_cardrows)[i] = NULL;
   }
-  free(player_cardrows);
+  free(*player_cardrows);
+  *player_cardrows = NULL;
+}
+
+
+void freeLinkedList(Card* head)
+{
+  Card* temporary_card;
+  while (head != NULL)
+  {
+    temporary_card = head;
+    head = head->next_;
+    free(temporary_card);
+    temporary_card = NULL;
+  }
 }
