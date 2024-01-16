@@ -100,6 +100,7 @@ void helpAction(int player_id, Card **player_handcards, Card **player_chosencard
 void singleRowPointsCount(Card *head, int *points, int *row_length);
 void freeLinkedList(Card* head);
 char* readInput();
+void convertToLowercaseAndTrim(char *str);
 
 //---------------------------------------------------------------------------------------------------------------------
 ///
@@ -906,27 +907,25 @@ int chooseCardToKeep(int player_id, Card **player_handcards, Card **player_chose
     if (input == NULL)
     {
       printf("Error: Memory allocation error\n");
-      printf("Please enter the number of a card in your hand cards!\n");
-      printf("THIS IS NOT WORKING\n");
       return 1;
     }
-
+    convertToLowercaseAndTrim(input);
     if (strlen(input) == 0 || strspn(input, " ") == strlen(input))
     {
       printf("Please enter the number of a card in your hand cards!\n");
       free(input);
       continue;
     }
-    if (strcmp(input, "quit") == 0)
+    if (strncmp(input, "quit", 4) == 0)
     {
+      if (strlen(input) > 4)
+      {
+        printf("Please enter the correct number of parameters!\n");
+        free(input);
+        continue;
+      }
       free(input);
       return 1;
-    }
-    else if (strncmp(input, "quit", 4) == 0 && strlen(input) > 4)
-    {
-      printf("Please enter the correct number of parameters!\n");
-      free(input);
-      continue;
     }
     else if (stringToInt(input) < 1 || stringToInt(input) > 120)
     {
