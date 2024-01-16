@@ -13,8 +13,7 @@
 // Author: 12320035
 //------------------------------------------------------------------------------
 //
-
-#define _POSIX_C_SOURCE 200809L // Necessary to suppress a warning in getline
+#define _POSIX_C_SOURCE 200809L // Necessary to suppress warnings about implicit declarations
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -229,9 +228,9 @@ int stringToInt(const char *str)
   // Check for conversion errors
   if (*endptr != '\0' || value < INT_MIN || value > INT_MAX)
   {
-    return -1; // Conversion failed
+    return -1;
   }
-  return (int)value; // Conversion successful
+  return (int)value;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -245,21 +244,18 @@ int stringToInt(const char *str)
 //
 char* readInput()
 {
-  // Initial size of the buffer
   size_t bufferSize = 10;
-  // Allocate memory for the buffer
+  // Allocate initial buffer
   char* buffer = (char*)malloc(bufferSize * sizeof(char));
   if (buffer == NULL)
   {
     return NULL;
   }
-  // Initialize variables
   size_t index = 0;
   int c;
-  // Read characters until a newline is encountered
+  // Read characters until newline or EOF is reached and reallocate buffer if necessary
   while ((c = getchar()) != EOF && c != '\n')
   {
-    // Check if the buffer is full and resize if necessary
     if (index == bufferSize - 1)
     {
       bufferSize *= 2;
@@ -271,10 +267,8 @@ char* readInput()
       }
       buffer = temp;
     }
-    // Store the character in the buffer
     buffer[index++] = (char)c;
   }
-  // Null-terminate the string
   buffer[index] = '\0';
   return buffer;
 }
@@ -321,7 +315,8 @@ void printPlayerPoints(char *config_file, Card ***player_one_cardrows, Card ***p
 
 //---------------------------------------------------------------------------------------------------------------------
 ///
-/// This function writes the points of both players and the winner of the game to the config file.
+/// This function writes the points of both players and the winner of the game to the config file. If the file could
+/// not be opened, it prints a warning to the console.
 ///
 /// @param config_file The path to the config file
 /// @param player_one_points The points of the first player
@@ -331,11 +326,11 @@ void printPlayerPoints(char *config_file, Card ***player_one_cardrows, Card ***p
 //
 void writePlayerPointsToFile(char *config_file, int player_one_points, int player_two_points)
 {
-  FILE *file = fopen(config_file, "a");
+  FILE *file = fopen(config_file, "a"); // append mode
   if (file == NULL)
   {
     printf("Warning: Results not written to file!\n");
-    return;
+    return; // Exit code 0
   }
   if (player_one_points < player_two_points)
   {
@@ -366,9 +361,10 @@ void writePlayerPointsToFile(char *config_file, int player_one_points, int playe
 
 //---------------------------------------------------------------------------------------------------------------------
 ///
-/// This function checks if the correct number of arguments is given.
+/// This function checks if the correct number of arguments is given. It should be exactly two: The program name and
+/// the config file path.
 ///
-/// @param argc The number of arguments
+/// @param argc The number of arguments. Same name as the main file argument.
 ///
 /// @return
 ///      0 if the correct number of arguments is given
@@ -386,7 +382,7 @@ int checkMainArgumentsCount(int argc)
 
 //---------------------------------------------------------------------------------------------------------------------
 ///
-/// This function opens a file and returns a pointer to it.
+/// This function opens a file and returns a pointer to it. The file is open in read-only mode.
 ///
 /// @param config_file The path to the config file
 ///
@@ -407,7 +403,7 @@ FILE *openFile(char *config_file)
 
 //---------------------------------------------------------------------------------------------------------------------
 ///
-/// This function reads a line from a file and returns it.
+/// This function reads a line from a file and returns it. It reads the file at a given line index number.
 ///
 /// @param file The file to read from
 /// @param line_number The line number to read
@@ -440,21 +436,22 @@ char *readLine(FILE *file, int line_number)
 ///
 /// @return
 ///      0 if the config file is valid
-///      1 if the config file could not be opened
-///      2 if the config file is invalid
+///      2 if the config file could not be opened
+///      3 if the config file is invalid
 //
 int checkConfigFile(char *config_file)
 {
   FILE *file = openFile(config_file);
-  if (file == NULL) {
+  if (file == NULL)
+  {
     return CANNOT_OPEN_FILE;
   }
   char *magic_number = "ESP\n";
   char *line = NULL;
   size_t len = 0;
-  ssize_t read;
+  size_t read;
   read = getline(&line, &len, file);
-  if (read == -1)
+  if (read == (size_t)-1)
   {
     printf("Error: Invalid file: %s\n", config_file);
     fclose(file);
@@ -476,7 +473,7 @@ int checkConfigFile(char *config_file)
 //---------------------------------------------------------------------------------------------------------------------
 ///
 /// This function gets the number of players from the config file. Its not really necessary, as we only play with two
-/// players, but it might be useful to extend the game to more players.
+/// players, but it might be useful to extend the game to more players in the future.
 ///
 /// @param config_file The path to the config file
 ///
@@ -486,12 +483,12 @@ int checkConfigFile(char *config_file)
 //
 int getPlayersCount(char *config_file)
 {
-  // The number of players is defined in the second line of the file
   FILE *file = openFile(config_file);
   if (file == NULL)
   {
     return -1;
   }
+  // The number of players is defined in the second line of the file
   char *line = readLine(file, 2);
   int players_count = stringToInt(line);
   free(line);
@@ -515,7 +512,7 @@ void printWelcomeMessage(int players_count)
 
 //---------------------------------------------------------------------------------------------------------------------
 ///
-/// This function parses a string and returns the corresponding color.
+/// This function parses a string and returns the corresponding color for the creation of a Card.
 ///
 /// @param color The string to parse
 ///
@@ -553,7 +550,8 @@ Color parseColor(char *color)
 
 //---------------------------------------------------------------------------------------------------------------------
 ///
-/// This function creates a card from a line in the config file. It returns a pointer to the card.
+/// This function creates a card from a line in the config file. It parses the value and the color from the string
+/// and returns a Card from it. The Card is malloced and returned.
 ///
 /// @param config_file_line The line from the config file
 ///
@@ -950,7 +948,6 @@ int chooseCardToKeep(int player_id, Card **player_handcards, Card **player_chose
       continue;
     }
     card_number = stringToInt(input);
-
     chosen_card = getCardFromHand(*player_handcards, card_number);
     if (chosen_card == NULL)
     {
@@ -1198,7 +1195,8 @@ void swapCards(Card **first_card, Card **second_card)
 //
 int sortCards(Card **player_cards)
 {
-  if (*player_cards == NULL || (*player_cards)->next_ == NULL) {
+  if (*player_cards == NULL || (*player_cards)->next_ == NULL)
+  {
     return 1;
   }
   int swapped;
@@ -1299,7 +1297,8 @@ int isActionInputCorrect(char *row_number, const char *card_number)
 ///
 /// @return void
 //
-void convertToLowercaseAndTrim(char *str) {
+void convertToLowercaseAndTrim(char *str)
+{
   // Convert only alphabetic characters to lowercase
   for (int i = 0; str[i]; i++)
   {
@@ -1459,7 +1458,8 @@ int placeAction(char *input, bool *skip_prompt, int player_id, Card **player_han
                 Card **player_chosencards, Card ***player_cardrows)
 {
   char *input_copy = strdup(input);
-  if (input_copy == NULL) {
+  if (input_copy == NULL)
+  {
     printf("Error: Memory allocation failure\n");
     return 1;
   }
@@ -1605,7 +1605,6 @@ int calculatePlayerPoints(Card ***player_cardrows)
   return points;
 }
 
-
 //---------------------------------------------------------------------------------------------------------------------
 ///
 /// This function counts the points of a single row of cards. It counts the points of the cards and adds them to the
@@ -1657,10 +1656,8 @@ void freePlayer(Card **player_handcards, Card **player_chosencards, Card ***play
 {
   freeLinkedList(*player_handcards);
   *player_handcards = NULL;
-
   freeLinkedList(*player_chosencards);
   *player_chosencards = NULL;
-
   for (int i = 0; i < MAX_CARD_ROWS; i++)
   {
     freeLinkedList((*player_cardrows)[i]);
