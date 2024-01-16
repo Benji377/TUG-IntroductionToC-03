@@ -20,6 +20,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <limits.h>
+#include <ctype.h>
 
 #define WRONG_ARGUMENT_COUNT 1
 #define CANNOT_OPEN_FILE 2
@@ -29,7 +30,6 @@
 const int CONFIG_CARDS_LINE_START = 3;
 const int CONFIG_CARDS_LINE_END = 23;
 const int MAX_CARD_ROWS = 3;
-
 
 enum _Color_
 {
@@ -47,7 +47,6 @@ struct _Card_
   struct _Card_ *next_;
 };
 typedef struct _Card_ Card;
-
 
 int checkMainArgumentsCount(int argc);
 int getPlayersCount(char *config_file);
@@ -100,6 +99,7 @@ void printPlayerCardRows(Card **const *player_cardrows);
 void helpAction(int player_id, Card **player_handcards, Card **player_chosencards, Card ***player_cardrows);
 void singleRowPointsCount(Card *head, int *points, int *row_length);
 void freeLinkedList(Card* head);
+char* readInput();
 
 //---------------------------------------------------------------------------------------------------------------------
 ///
@@ -231,6 +231,51 @@ int stringToInt(const char *str)
     return -1; // Conversion failed
   }
   return (int)value; // Conversion successful
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+///
+/// This is a helper function to retrieve user input using malloc and realloc. It returns the inputted string or NULL
+/// if there was a memory allocation error.
+///
+/// @return
+///      NULL if there was a memory allocation error
+///      the inputted string if there was no memory allocation error
+//
+char* readInput()
+{
+  // Initial size of the buffer
+  size_t bufferSize = 10;
+  // Allocate memory for the buffer
+  char* buffer = (char*)malloc(bufferSize * sizeof(char));
+  if (buffer == NULL)
+  {
+    return NULL;
+  }
+  // Initialize variables
+  size_t index = 0;
+  int c;
+  // Read characters until a newline is encountered
+  while ((c = getchar()) != EOF && c != '\n')
+  {
+    // Check if the buffer is full and resize if necessary
+    if (index == bufferSize - 1)
+    {
+      bufferSize *= 2;
+      char* temp = (char*)realloc(buffer, bufferSize * sizeof(char));
+      if (temp == NULL)
+      {
+        free(buffer);
+        return NULL;
+      }
+      buffer = temp;
+    }
+    // Store the character in the buffer
+    buffer[index++] = (char)c;
+  }
+  // Null-terminate the string
+  buffer[index] = '\0';
+  return buffer;
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -857,11 +902,13 @@ int chooseCardToKeep(int player_id, Card **player_handcards, Card **player_chose
     chosen_card = NULL;
     int card_number;
     printf("P%i > ", player_id);
-    char *input = NULL;
-    size_t len = 0;
-    getline(&input, &len, stdin);
-    input[strcspn(input, "\n")] = 0;
-    // Check if input is empty or only contains spaces
+    char *input = readInput();
+    if (input == NULL)
+    {
+      printf("Error: Memory allocation error\n");
+      return 1;
+    }
+
     if (strlen(input) == 0 || strspn(input, " ") == strlen(input))
     {
       printf("Please enter the number of a card in your hand cards!\n");
@@ -1229,6 +1276,42 @@ int isActionInputCorrect(char *row_number, const char *card_number)
 
 //---------------------------------------------------------------------------------------------------------------------
 ///
+/// A helper function to convert a given string to all lowercase and trim away unnecessary whitespaces.
+///
+/// @param str The string to convert
+///
+/// @return void
+//
+void convertToLowercaseAndTrim(char *str) {
+  // Convert only alphabetic characters to lowercase
+  for (int i = 0; str[i]; i++)
+  {
+    str[i] = tolower((unsigned char)str[i]);
+  }
+  // Remove leading whitespaces
+  int start = 0;
+  while (isspace((unsigned char)str[start]))
+  {
+    start++;
+  }
+  // Remove trailing whitespaces
+  int end = strlen(str) - 1;
+  while (end >= 0 && isspace((unsigned char)str[end]))
+  {
+    end--;
+  }
+  // Shift the non-whitespace characters to the beginning
+  int i, j;
+  for (i = start, j = 0; i <= end; i++, j++)
+  {
+    str[j] = str[i];
+  }
+  // Null-terminate the string
+  str[j] = '\0';
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+///
 /// This function performs the action choosing phase. It starts with the first player and lets him choose a card from
 /// his chosen cards and add it to one of his card rows. Then it does the same for the second player. It returns 0 if
 /// the action choosing phase could be performed successfully and 1 otherwise.
@@ -1252,17 +1335,22 @@ int actionChoosingLoop(int player_id, Card **player_handcards, Card **player_cho
       printf("What do you want to do?\n");
     }
     printf("P%i > ", player_id);
-    char *input = NULL;
-    size_t len = 0;
-    getline(&input, &len, stdin);
-    input[strcspn(input, "\n")] = 0;
-
-    if (strcmp(input, "quit") == 0)
+    char *input = readInput();
+    // Convert the input to lowercase
+    convertToLowercaseAndTrim(input);
+    if (strncmp(input, "quit", 4) == 0)
     {
+      if (strlen(input) > 4)
+      {
+        printf("Please enter the correct number of parameters!\n");
+        skip_prompt = true;
+        free(input);
+        continue;
+      }
       free(input);
       return 1;
     }
-    else if (strncmp(input, "place", 5) == 0 && strlen(input) > 5)
+    else if (strncmp(input, "place", 5) == 0 && strlen(input) >= 5)
     {
      if (placeAction(input, &skip_prompt, player_id, player_handcards, player_chosencards, player_cardrows) == 1)
      {
@@ -1270,7 +1358,7 @@ int actionChoosingLoop(int player_id, Card **player_handcards, Card **player_cho
        continue;
      }
     }
-    else if (strncmp(input, "discard", 7) == 0 && strlen(input) > 7)
+    else if (strncmp(input, "discard", 7) == 0 && strlen(input) >= 7)
     {
       if (discardAction(input, &skip_prompt, player_id, player_handcards, player_chosencards, player_cardrows) == 1)
       {
@@ -1278,13 +1366,20 @@ int actionChoosingLoop(int player_id, Card **player_handcards, Card **player_cho
         continue;
       }
     }
-    else if (strcmp(input, "help") == 0)
+    else if (strncmp(input, "help", 4) == 0)
     {
+      if (strlen(input) > 4)
+      {
+        printf("Please enter the correct number of parameters!\n");
+        skip_prompt = true;
+        free(input);
+        continue;
+      }
       helpAction(player_id, player_handcards, player_chosencards, player_cardrows);
     }
     else
     {
-      printf("Please enter the correct number of parameters!\n");
+      printf("Please enter a valid command!\n");
       skip_prompt = true;
       free(input);
       continue;
@@ -1353,6 +1448,14 @@ int placeAction(char *input, bool *skip_prompt, int player_id, Card **player_han
   }
   char *row_number = strtok(input_copy + 5, " ");
   char *card_number = strtok(NULL, " ");
+  char *rest_of_input = strtok(NULL, "");
+  if (rest_of_input != NULL || row_number == NULL || card_number == NULL)
+  {
+    printf("Please enter the correct number of parameters!\n");
+    *skip_prompt = true;
+    free(input_copy);
+    return 1;
+  }
   if (isActionInputCorrect(row_number, card_number))
   {
     int card_number_int = stringToInt(card_number);
@@ -1411,6 +1514,13 @@ int discardAction(char *input, bool *skip_prompt, int player_id, Card **player_h
                   Card **player_chosencards, Card ***player_cardrows)
 {
   char *card_number = strtok(input + 7, " ");
+  char *rest_of_input = strtok(NULL, "");
+  if (rest_of_input != NULL || card_number == NULL)
+  {
+    printf("Please enter the correct number of parameters!\n");
+    *skip_prompt = true;
+    return 1;
+  }
   if (card_number == NULL || strtok(NULL, " ") != NULL)
   {
     printf("Please enter the correct number of parameters!\n");
