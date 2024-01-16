@@ -264,7 +264,6 @@ void writePlayerPointsToFile(char *config_file, int player_one_points, int playe
     fprintf(file, "Congratulations! Player 1 wins the game!\n");
   }
   fclose(file);
-  free(file);
   file = NULL;
 }
 
@@ -508,9 +507,10 @@ int assignCardsToPlayers(Card **player_one_handcards, Card **player_two_handcard
   {
     char *line = readLine(file, i);
     Card *temp_card = createCard(line);
+    free(line);
+    line = NULL;
     if (temp_card == NULL)
     {
-      free(line);
       fclose(file);
       return MEMORY_ALLOCATION_ERROR;
     }
@@ -523,7 +523,6 @@ int assignCardsToPlayers(Card **player_one_handcards, Card **player_two_handcard
     {
       addCardToHand(player_two_handcards, temp_card);
     }
-    free(line);
   }
   fclose(file);
   return 0;
@@ -1345,6 +1344,7 @@ int placeAction(char *input, bool *skip_prompt, int player_id, Card **player_han
   }
   else
   {
+    free(input_copy);
     *skip_prompt = true;
     return 1;
   }
@@ -1388,6 +1388,7 @@ int discardAction(char *input, bool *skip_prompt, int player_id, Card **player_h
   else
   {
     removeCardFromChosen(player_chosencards, choosen_card);
+    free(choosen_card);
     printf("\n");
     printPlayer(player_id, player_handcards, player_chosencards, player_cardrows);
   }
@@ -1498,7 +1499,14 @@ void freePlayer(Card **player_handcards, Card **player_chosencards, Card ***play
   *player_cardrows = NULL;
 }
 
-
+//---------------------------------------------------------------------------------------------------------------------
+///
+/// This function frees a linked list of cards. It frees the memory of each card in the list.
+///
+/// @param head The head of the list
+///
+/// @return void
+//
 void freeLinkedList(Card* head)
 {
   Card* temporary_card;
