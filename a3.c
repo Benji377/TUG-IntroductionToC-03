@@ -906,6 +906,8 @@ int chooseCardToKeep(int player_id, Card **player_handcards, Card **player_chose
     if (input == NULL)
     {
       printf("Error: Memory allocation error\n");
+      printf("Please enter the number of a card in your hand cards!\n");
+      printf("THIS IS NOT WORKING\n");
       return 1;
     }
 
