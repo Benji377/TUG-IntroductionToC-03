@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <limits.h>
 
 #define WRONG_ARGUMENT_COUNT 1
 #define CANNOT_OPEN_FILE 2
@@ -196,6 +197,40 @@ int main(int argc, char *argv[])
     freePlayer(&player_two_handcards, &player_two_chosencards, &player_two_cardrows);
   }
   return 0;
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+///
+/// This function converts a given string to an integer using the strtol function. It returns the converted integer if
+/// the conversion was successful and -1 otherwise. It also strips away whitespaces before the conversion.
+///
+/// @param str The string to convert
+///
+/// @return
+///      -1 if the conversion failed
+///      the converted integer if the conversion was successful
+//
+int stringToInt(const char *str)
+{
+  // Strip out spaces and newlines
+  char sanitized_str[strlen(str) + 1];
+  int j = 0;
+  for (size_t i = 0; i < strlen(str); i++)
+  {
+    if (str[i] != ' ' && str[i] != '\n')
+    {
+      sanitized_str[j++] = str[i];
+    }
+  }
+  sanitized_str[j] = '\0';
+  char *endptr;
+  long value = strtol(sanitized_str, &endptr, 10);
+  // Check for conversion errors
+  if (*endptr != '\0' || value < INT_MIN || value > INT_MAX)
+  {
+    return -1; // Conversion failed
+  }
+  return (int)value; // Conversion successful
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -396,7 +431,7 @@ int getPlayersCount(char *config_file)
     return -1;
   }
   char *line = readLine(file, 2);
-  int players_count = atoi(line);
+  int players_count = stringToInt(line);
   free(line);
   fclose(file);
   return players_count;
@@ -472,7 +507,7 @@ Card *createCard(char *config_file_line)
     printf("Error: Memory allocation error\n");
     return NULL;
   }
-  int value = atoi(strtok(config_file_line, "_"));
+  int value = stringToInt(strtok(config_file_line, "_"));
   char *color = strtok(NULL, "_");
   color[strcspn(color, "\n")] = 0;
   card->color_ = parseColor(color);
@@ -822,8 +857,6 @@ int chooseCardToKeep(int player_id, Card **player_handcards, Card **player_chose
     chosen_card = NULL;
     int card_number;
     printf("P%i > ", player_id);
-    // Read user input. Can be either a string saying quit or a number
-    // Input must be stored on the heap
     char *input = NULL;
     size_t len = 0;
     getline(&input, &len, stdin);
@@ -835,7 +868,6 @@ int chooseCardToKeep(int player_id, Card **player_handcards, Card **player_chose
       free(input);
       continue;
     }
-
     if (strcmp(input, "quit") == 0)
     {
       free(input);
@@ -847,14 +879,14 @@ int chooseCardToKeep(int player_id, Card **player_handcards, Card **player_chose
       free(input);
       continue;
     }
-    else if (atoi(input) == 0)
+    else if (stringToInt(input) < 1 || stringToInt(input) > 120)
     {
       printf("Please enter the number of a card in your hand cards!\n");
       free(input);
       continue;
     }
+    card_number = stringToInt(input);
 
-    card_number = atoi(input);
     chosen_card = getCardFromHand(*player_handcards, card_number);
     if (chosen_card == NULL)
     {
@@ -1184,7 +1216,7 @@ int isActionInputCorrect(char *row_number, const char *card_number)
     printf("Please enter the correct number of parameters!\n");
     return false;
   }
-  else if (atoi(row_number) > 3 || atoi(row_number) < 1)
+  else if (stringToInt(row_number) > 3 || stringToInt(row_number) < 1)
   {
     printf("Please enter a valid row number!\n");
     return false;
@@ -1323,7 +1355,7 @@ int placeAction(char *input, bool *skip_prompt, int player_id, Card **player_han
   char *card_number = strtok(NULL, " ");
   if (isActionInputCorrect(row_number, card_number))
   {
-    int card_number_int = atoi(card_number);
+    int card_number_int = stringToInt(card_number);
     Card *choosen_card = getCardFromChosen(*player_chosencards, card_number_int);
     if (choosen_card == NULL)
     {
@@ -1335,7 +1367,7 @@ int placeAction(char *input, bool *skip_prompt, int player_id, Card **player_han
     else
     {
       removeCardFromChosen(player_chosencards, choosen_card);
-      int row_number_int = atoi(row_number) - 1;
+      int row_number_int = stringToInt(row_number) - 1;
       int result = addCardToRow(*player_cardrows, choosen_card, row_number_int);
       if (result == 1)
       {
@@ -1385,7 +1417,7 @@ int discardAction(char *input, bool *skip_prompt, int player_id, Card **player_h
     *skip_prompt = true;
     return 1;
   }
-  Card *choosen_card = getCardFromChosen(*player_chosencards, atoi(card_number));
+  Card *choosen_card = getCardFromChosen(*player_chosencards, stringToInt(card_number));
   if (choosen_card == NULL)
   {
     printf("Please enter the number of a card in your chosen cards!\n");
