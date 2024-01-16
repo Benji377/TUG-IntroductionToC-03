@@ -828,6 +828,13 @@ int chooseCardToKeep(int player_id, Card **player_handcards, Card **player_chose
     size_t len = 0;
     getline(&input, &len, stdin);
     input[strcspn(input, "\n")] = 0;
+    // Check if input is empty or only contains spaces
+    if (strlen(input) == 0 || strspn(input, " ") == strlen(input))
+    {
+      printf("Please enter the number of a card in your hand cards!\n");
+      free(input);
+      continue;
+    }
 
     if (strcmp(input, "quit") == 0)
     {
