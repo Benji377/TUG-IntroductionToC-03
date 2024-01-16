@@ -326,6 +326,8 @@ void writePlayerPointsToFile(char *config_file, int player_one_points, int playe
   FILE *file = fopen(config_file, "a");
   if (file == NULL)
   {
+    printf("PROBLEM WITH FILE\n");
+    printf("The file is NULL\n");
     printf("Error: Cannot open file: %s\n", config_file);
     return;
   }
