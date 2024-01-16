@@ -301,12 +301,20 @@ void printPlayerPoints(char *config_file, Card ***player_one_cardrows, Card ***p
     printf("\n");
     printf("Congratulations! Player 2 wins the game!\n");
   }
+  else if (player_one_points > player_two_points)
+  {
+    printf("Player 1: %i points\n", player_one_points);
+    printf("Player 2: %i points\n", player_two_points);
+    printf("\n");
+    printf("Congratulations! Player 1 wins the game!\n");
+  }
   else
   {
     printf("Player 1: %i points\n", player_one_points);
     printf("Player 2: %i points\n", player_two_points);
     printf("\n");
     printf("Congratulations! Player 1 wins the game!\n");
+    printf("Congratulations! Player 2 wins the game!\n");
   }
   writePlayerPointsToFile(config_file, player_one_points, player_two_points);
 }
@@ -326,9 +334,7 @@ void writePlayerPointsToFile(char *config_file, int player_one_points, int playe
   FILE *file = fopen(config_file, "a");
   if (file == NULL)
   {
-    printf("PROBLEM WITH FILE\n");
-    printf("The file is NULL\n");
-    printf("Error: Cannot open file: %s\n", config_file);
+    printf("Warning: Results not written to file!\n");
     return;
   }
   if (player_one_points < player_two_points)
@@ -339,12 +345,20 @@ void writePlayerPointsToFile(char *config_file, int player_one_points, int playe
     fprintf(file, "\n");
     fprintf(file, "Congratulations! Player 2 wins the game!\n");
   }
+  else if (player_one_points > player_two_points)
+  {
+    fprintf(file, "Player 1: %i points\n", player_one_points);
+    fprintf(file, "Player 2: %i points\n", player_two_points);
+    fprintf(file, "\n");
+    fprintf(file, "Congratulations! Player 1 wins the game!\n");
+  }
   else
   {
     fprintf(file, "Player 1: %i points\n", player_one_points);
     fprintf(file, "Player 2: %i points\n", player_two_points);
     fprintf(file, "\n");
     fprintf(file, "Congratulations! Player 1 wins the game!\n");
+    fprintf(file, "Congratulations! Player 2 wins the game!\n");
   }
   fclose(file);
   file = NULL;
@@ -1560,6 +1574,8 @@ int calculatePlayerPoints(Card ***player_cardrows)
 {
   int points = 0;
   int longest_row_length = 0;
+  int longest_row_index = -1;
+  // Find the longest row and its index
   for (int i = 0; i < MAX_CARD_ROWS; i++)
   {
     int row_length = 0;
@@ -1569,23 +1585,26 @@ int calculatePlayerPoints(Card ***player_cardrows)
       row_length++;
       head = head->next_;
     }
-    if (row_length > longest_row_length)
+    if (row_length > longest_row_length || (row_length == longest_row_length && i < longest_row_index))
     {
       longest_row_length = row_length;
+      longest_row_index = i;
     }
   }
+  // Calculate points, applying multiplier only to the longest row with the lowest index
   for (int i = 0; i < MAX_CARD_ROWS; i++)
   {
     int row_length = 0;
     Card *head = (*player_cardrows)[i];
     singleRowPointsCount(head, &points, &row_length);
-    if (row_length == longest_row_length)
+    if (row_length == longest_row_length && i == longest_row_index)
     {
       points *= 2;
     }
   }
   return points;
 }
+
 
 //---------------------------------------------------------------------------------------------------------------------
 ///
