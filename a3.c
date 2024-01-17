@@ -354,9 +354,9 @@ void writePlayerPointsToFile(char *config_file, int player_one_points, int playe
     printf(WARNING_FILE_NOT_WRITTEN);
     return; // Exit code 0
   }
+  fprintf(file, "\n");
   if (player_one_points < player_two_points)
   {
-    fprintf(file, "\n");
     fprintf(file, "Player 2: %i points\n", player_two_points);
     fprintf(file, "Player 1: %i points\n", player_one_points);
     fprintf(file, "\n");
