@@ -20,17 +20,37 @@
 #include <ctype.h>
 
 #define WRONG_ARGUMENT_COUNT 1
+#define WRONG_ARGUMENT_COUNT_MESSAGE "Usage: ./a3 <config file>\n"
 #define CANNOT_OPEN_FILE 2
 #define INVALID_FILE 3
 #define MEMORY_ALLOCATION_ERROR 4
+#define MEMORY_ALLOCATION_ERROR_MESSAGE "Error: Out of memory\n"
 #define TRUE 1
 #define FALSE 0
 #define INT_MAX __INT_MAX__
 #define INT_MIN (-INT_MAX - 1)
+#define WRONG_HANDCARDS_NUMBER "Please enter the number of a card in your hand cards!\n"
+#define INVALID_COMMAND "Please enter a valid command!\n"
+#define WRONG_PARAMETERS_COUNT "Please enter the correct number of parameters!\n"
+#define WRONG_ROW_NUMBER "Please enter a valid row number!\n"
+#define WRONG_CHOSENCARDS_NUMBER "Please enter the number of a card in your chosen cards!\n"
+#define CARD_CANNOT_EXTEND_ROW "This card cannot extend the chosen row!\n"
+#define WARNING_FILE_NOT_WRITTEN "Warning: Results not written to file!\n"
+#define PlAYER_1_WINS "Congratulations! Player 1 wins the game!\n"
+#define PlAYER_2_WINS "Congratulations! Player 2 wins the game!\n"
+#define PROMPT_CHOOSE_FIRST_CARD "Please choose a first card to keep:\n"
+#define PROMPT_CHOOSE_SECOND_CARD "Please choose a second card to keep:\n"
+#define CHOOSING_PHASE_IS_OVER "Card choosing phase is over - passing remaining hand cards to the next player!\n"
+#define ACTION_PHASE_IS_OVER "Action phase is over - starting next game round!\n"
+#define PROMPT_PLAYER_ACTION "What do you want to do?\n"
 
 const int CONFIG_CARDS_LINE_START = 3;
 const int CONFIG_CARDS_LINE_END = 23;
 const int MAX_CARD_ROWS = 3;
+const char* PLACE_ACTION = "place";
+const char* DISCARD_ACTION = "discard";
+const char* QUIT_ACTION = "quit";
+const char* HELP_ACTION = "help";
 
 enum _Color_
 {
@@ -295,22 +315,22 @@ void printPlayerPoints(char *config_file, Card ***player_one_cardrows, Card ***p
     printf("Player 2: %i points\n", player_two_points);
     printf("Player 1: %i points\n", player_one_points);
     printf("\n");
-    printf("Congratulations! Player 2 wins the game!\n");
+    printf(PlAYER_2_WINS);
   }
   else if (player_one_points > player_two_points)
   {
     printf("Player 1: %i points\n", player_one_points);
     printf("Player 2: %i points\n", player_two_points);
     printf("\n");
-    printf("Congratulations! Player 1 wins the game!\n");
+    printf(PlAYER_1_WINS);
   }
   else
   {
     printf("Player 1: %i points\n", player_one_points);
     printf("Player 2: %i points\n", player_two_points);
     printf("\n");
-    printf("Congratulations! Player 1 wins the game!\n");
-    printf("Congratulations! Player 2 wins the game!\n");
+    printf(PlAYER_1_WINS);
+    printf(PlAYER_2_WINS);
   }
   writePlayerPointsToFile(config_file, player_one_points, player_two_points);
 }
@@ -331,7 +351,7 @@ void writePlayerPointsToFile(char *config_file, int player_one_points, int playe
   FILE *file = fopen(config_file, "a"); // append mode
   if (file == NULL)
   {
-    printf("Warning: Results not written to file!\n");
+    printf(WARNING_FILE_NOT_WRITTEN);
     return; // Exit code 0
   }
   if (player_one_points < player_two_points)
@@ -340,22 +360,22 @@ void writePlayerPointsToFile(char *config_file, int player_one_points, int playe
     fprintf(file, "Player 2: %i points\n", player_two_points);
     fprintf(file, "Player 1: %i points\n", player_one_points);
     fprintf(file, "\n");
-    fprintf(file, "Congratulations! Player 2 wins the game!\n");
+    fprintf(file, PlAYER_2_WINS);
   }
   else if (player_one_points > player_two_points)
   {
     fprintf(file, "Player 1: %i points\n", player_one_points);
     fprintf(file, "Player 2: %i points\n", player_two_points);
     fprintf(file, "\n");
-    fprintf(file, "Congratulations! Player 1 wins the game!\n");
+    fprintf(file, PlAYER_1_WINS);
   }
   else
   {
     fprintf(file, "Player 1: %i points\n", player_one_points);
     fprintf(file, "Player 2: %i points\n", player_two_points);
     fprintf(file, "\n");
-    fprintf(file, "Congratulations! Player 1 wins the game!\n");
-    fprintf(file, "Congratulations! Player 2 wins the game!\n");
+    fprintf(file, PlAYER_1_WINS);
+    fprintf(file, PlAYER_2_WINS);
   }
   fclose(file);
   file = NULL;
@@ -376,7 +396,7 @@ int checkMainArgumentsCount(int argc)
 {
   if (argc != 2)
   {
-    printf("Usage: ./a3 <config file>\n");
+    printf(WRONG_ARGUMENT_COUNT_MESSAGE);
     return 1;
   }
   return 0;
@@ -651,7 +671,7 @@ Card *createCard(char *config_file_line)
   Card *card = malloc(sizeof(Card));
   if (card == NULL)
   {
-    printf("Error: Memory allocation error\n");
+    printf(MEMORY_ALLOCATION_ERROR_MESSAGE);
     return NULL;
   }
   int value = stringToInt(strtok(config_file_line, "_"));
@@ -777,30 +797,30 @@ int cardChoosingPhase(Card **player_one_handcards, Card **player_one_chosencards
                       Card **player_two_handcards, Card **player_two_chosencards, Card ***player_two_cardrows)
 {
   printPlayer(1, player_one_handcards, player_one_chosencards, player_one_cardrows);
-  printf("Please choose a first card to keep:\n");
+  printf(PROMPT_CHOOSE_FIRST_CARD);
   if (chooseCardToKeep(1, player_one_handcards, player_one_chosencards) == 1)
   {
     return 1;
   }
-  printf("Please choose a second card to keep:\n");
+  printf(PROMPT_CHOOSE_SECOND_CARD);
   if (chooseCardToKeep(1, player_one_handcards, player_one_chosencards) == 1)
   {
     return 1;
   }
   printf("\n");
   printPlayer(2, player_two_handcards, player_two_chosencards, player_two_cardrows);
-  printf("Please choose a first card to keep:\n");
+  printf(PROMPT_CHOOSE_FIRST_CARD);
   if (chooseCardToKeep(2, player_two_handcards, player_two_chosencards) == 1)
   {
     return 1;
   }
-  printf("Please choose a second card to keep:\n");
+  printf(PROMPT_CHOOSE_SECOND_CARD);
   if (chooseCardToKeep(2, player_two_handcards, player_two_chosencards) == 1)
   {
     return 1;
   }
   printf("\n");
-  printf("Card choosing phase is over - passing remaining hand cards to the next player!\n");
+  printf(CHOOSING_PHASE_IS_OVER);
   printf("\n");
   return 0;
 }
@@ -1007,21 +1027,21 @@ int chooseCardToKeep(int player_id, Card **player_handcards, Card **player_chose
     char *input = readInput();
     if (input == NULL)
     {
-      printf("Error: Memory allocation error\n");
+      printf(MEMORY_ALLOCATION_ERROR_MESSAGE);
       return 1;
     }
     convertToLowercaseAndTrim(input);
     if (strlen(input) == 0 || strspn(input, " ") == strlen(input))
     {
-      printf("Please enter the number of a card in your hand cards!\n");
+      printf(WRONG_HANDCARDS_NUMBER);
       free(input);
       continue;
     }
-    if (strncmp(input, "quit", 4) == 0)
+    if (strncmp(input, QUIT_ACTION, 4) == 0)
     {
       if (strlen(input) > 4)
       {
-        printf("Please enter the correct number of parameters!\n");
+        printf(WRONG_PARAMETERS_COUNT);
         free(input);
         continue;
       }
@@ -1030,7 +1050,7 @@ int chooseCardToKeep(int player_id, Card **player_handcards, Card **player_chose
     }
     else if (stringToInt(input) < 1 || stringToInt(input) > 120)
     {
-      printf("Please enter the number of a card in your hand cards!\n");
+      printf(WRONG_HANDCARDS_NUMBER);
       free(input);
       continue;
     }
@@ -1038,7 +1058,7 @@ int chooseCardToKeep(int player_id, Card **player_handcards, Card **player_chose
     chosen_card = getCardFromHand(*player_handcards, card_number);
     if (chosen_card == NULL)
     {
-      printf("Please enter the number of a card in your hand cards!\n");
+      printf(WRONG_HANDCARDS_NUMBER);
     }
     else
     {
@@ -1341,7 +1361,7 @@ int actionChoosingPhase(Card **player_one_handcards, Card **player_one_chosencar
     return 1;
   }
   printf("\n");
-  printf("Action phase is over - starting next game round!\n");
+  printf(ACTION_PHASE_IS_OVER);
   printf("\n");
   return 0;
 }
@@ -1362,12 +1382,12 @@ int isActionInputCorrect(char *row_number, const char *card_number)
 {
   if ((row_number == NULL || card_number == NULL) || strtok(NULL, " ") != NULL)
   {
-    printf("Please enter the correct number of parameters!\n");
+    printf(WRONG_PARAMETERS_COUNT);
     return FALSE;
   }
   else if (stringToInt(row_number) > 3 || stringToInt(row_number) < 1)
   {
-    printf("Please enter a valid row number!\n");
+    printf(WRONG_ROW_NUMBER);
     return FALSE;
   }
   else
@@ -1435,17 +1455,17 @@ int actionChoosingLoop(int player_id, Card **player_handcards, Card **player_cho
   {
     if (!skip_prompt)
     {
-      printf("What do you want to do?\n");
+      printf(PROMPT_PLAYER_ACTION);
     }
     printf("P%i > ", player_id);
     char *input = readInput();
     // Convert the input to lowercase
     convertToLowercaseAndTrim(input);
-    if (strncmp(input, "quit", 4) == 0)
+    if (strncmp(input, QUIT_ACTION, 4) == 0)
     {
       if (strlen(input) > 4)
       {
-        printf("Please enter the correct number of parameters!\n");
+        printf(WRONG_PARAMETERS_COUNT);
         skip_prompt = TRUE;
         free(input);
         continue;
@@ -1453,7 +1473,7 @@ int actionChoosingLoop(int player_id, Card **player_handcards, Card **player_cho
       free(input);
       return 1;
     }
-    else if (strncmp(input, "place", 5) == 0 && strlen(input) >= 5)
+    else if (strncmp(input, PLACE_ACTION, 5) == 0 && strlen(input) >= 5)
     {
      if (placeAction(input, &skip_prompt, player_id, player_handcards, player_chosencards, player_cardrows) == 1)
      {
@@ -1461,7 +1481,7 @@ int actionChoosingLoop(int player_id, Card **player_handcards, Card **player_cho
        continue;
      }
     }
-    else if (strncmp(input, "discard", 7) == 0 && strlen(input) >= 7)
+    else if (strncmp(input, DISCARD_ACTION, 7) == 0 && strlen(input) >= 7)
     {
       if (discardAction(input, &skip_prompt, player_id, player_handcards, player_chosencards, player_cardrows) == 1)
       {
@@ -1469,11 +1489,11 @@ int actionChoosingLoop(int player_id, Card **player_handcards, Card **player_cho
         continue;
       }
     }
-    else if (strncmp(input, "help", 4) == 0)
+    else if (strncmp(input, HELP_ACTION, 4) == 0)
     {
       if (strlen(input) > 4)
       {
-        printf("Please enter the correct number of parameters!\n");
+        printf(WRONG_PARAMETERS_COUNT);
         skip_prompt = TRUE;
         free(input);
         continue;
@@ -1482,7 +1502,7 @@ int actionChoosingLoop(int player_id, Card **player_handcards, Card **player_cho
     }
     else
     {
-      printf("Please enter a valid command!\n");
+      printf(INVALID_COMMAND);
       skip_prompt = TRUE;
       free(input);
       continue;
@@ -1547,7 +1567,7 @@ int placeAction(char *input, int *skip_prompt, int player_id, Card **player_hand
   char *input_copy = duplicateString(input);
   if (input_copy == NULL)
   {
-    printf("Error: Memory allocation failure\n");
+    printf(MEMORY_ALLOCATION_ERROR_MESSAGE);
     return 1;
   }
   char *row_number = strtok(input_copy + 5, " ");
@@ -1555,7 +1575,7 @@ int placeAction(char *input, int *skip_prompt, int player_id, Card **player_hand
   char *rest_of_input = strtok(NULL, "");
   if (rest_of_input != NULL || row_number == NULL || card_number == NULL)
   {
-    printf("Please enter the correct number of parameters!\n");
+    printf(WRONG_PARAMETERS_COUNT);
     *skip_prompt = TRUE;
     free(input_copy);
     return 1;
@@ -1566,7 +1586,7 @@ int placeAction(char *input, int *skip_prompt, int player_id, Card **player_hand
     Card *choosen_card = getCardFromChosen(*player_chosencards, card_number_int);
     if (choosen_card == NULL)
     {
-      printf("Please enter the number of a card in your chosen cards!\n");
+      printf(WRONG_CHOSENCARDS_NUMBER);
       *skip_prompt = TRUE;
       free(input_copy);
       return 1;
@@ -1578,7 +1598,7 @@ int placeAction(char *input, int *skip_prompt, int player_id, Card **player_hand
       int result = addCardToRow(*player_cardrows, choosen_card, row_number_int);
       if (result == 1)
       {
-        printf("This card cannot extend the chosen row!\n");
+        printf(CARD_CANNOT_EXTEND_ROW);
         *skip_prompt = TRUE;
         addCardToChosen(player_chosencards, choosen_card);
         free(input_copy);
@@ -1621,20 +1641,14 @@ int discardAction(char *input, int *skip_prompt, int player_id, Card **player_ha
   char *rest_of_input = strtok(NULL, "");
   if (rest_of_input != NULL || card_number == NULL)
   {
-    printf("Please enter the correct number of parameters!\n");
-    *skip_prompt = TRUE;
-    return 1;
-  }
-  if (card_number == NULL || strtok(NULL, " ") != NULL)
-  {
-    printf("Please enter the correct number of parameters!\n");
+    printf(WRONG_PARAMETERS_COUNT);
     *skip_prompt = TRUE;
     return 1;
   }
   Card *choosen_card = getCardFromChosen(*player_chosencards, stringToInt(card_number));
   if (choosen_card == NULL)
   {
-    printf("Please enter the number of a card in your chosen cards!\n");
+    printf(WRONG_CHOSENCARDS_NUMBER);
     *skip_prompt = TRUE;
     return 1;
   }
