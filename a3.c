@@ -13,18 +13,20 @@
 // Author: 12320035
 //------------------------------------------------------------------------------
 //
-#define _POSIX_C_SOURCE 200809L // Necessary to suppress warnings about implicit declarations
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
-#include <limits.h>
 #include <ctype.h>
 
 #define WRONG_ARGUMENT_COUNT 1
 #define CANNOT_OPEN_FILE 2
 #define INVALID_FILE 3
 #define MEMORY_ALLOCATION_ERROR 4
+#define TRUE 1
+#define FALSE 0
+#define INT_MAX __INT_MAX__
+#define INT_MIN (-INT_MAX - 1)
 
 const int CONFIG_CARDS_LINE_START = 3;
 const int CONFIG_CARDS_LINE_END = 23;
@@ -76,9 +78,9 @@ int removeCardFromChosen(Card **player_chosencards, Card *card);
 int addCardToRow(Card **player_cardrows, Card *card, int row_number);
 int calculatePlayerPoints(Card ***player_cardrows);
 
-int placeAction(char *input, bool *skip_prompt, int player_id, Card **player_handcards,
+int placeAction(char *input, int *skip_prompt, int player_id, Card **player_handcards,
                 Card **player_chosencards, Card ***player_cardrows);
-int discardAction(char *input, bool *skip_prompt, int player_id, Card **player_handcards,
+int discardAction(char *input, int *skip_prompt, int player_id, Card **player_handcards,
                   Card **player_chosencards, Card ***player_cardrows);
 
 // Ask user input
@@ -165,7 +167,7 @@ int main(int argc, char *argv[])
   }
   sortCards(&player_one_handcards);
   sortCards(&player_two_handcards);
-  bool break_early = false;
+  int break_early = FALSE;
   do
   {
     printCardChoosingPhase();
@@ -174,7 +176,7 @@ int main(int argc, char *argv[])
     {
       freePlayer(&player_one_handcards, &player_one_chosencards, &player_one_cardrows);
       freePlayer(&player_two_handcards, &player_two_chosencards, &player_two_cardrows);
-      break_early = true;
+      break_early = TRUE;
       break;
     }
     exchangePlayerCards(&player_one_handcards, &player_two_handcards);
@@ -184,7 +186,7 @@ int main(int argc, char *argv[])
     {
       freePlayer(&player_one_handcards, &player_one_chosencards, &player_one_cardrows);
       freePlayer(&player_two_handcards, &player_two_chosencards, &player_two_cardrows);
-      break_early = true;
+      break_early = TRUE;
       break;
     }
   } while ((player_one_handcards != NULL || player_one_chosencards != NULL) &&
@@ -403,6 +405,84 @@ FILE *openFile(char *config_file)
 
 //---------------------------------------------------------------------------------------------------------------------
 ///
+/// A helper function to duplicate a string. It returns a pointer to the duplicated string or NULL if there was a
+/// memory allocation error.
+///
+/// @param str The string to duplicate
+///
+/// @return
+///      NULL if there was a memory allocation error
+///      a pointer to the duplicated string if there was no memory allocation error
+//
+char *duplicateString(const char *str)
+{
+  if (str == NULL)
+  {
+    return NULL;
+  }
+  size_t len = strlen(str);
+  char *duplicate = (char *)malloc(len + 1); // +1 for the null terminator
+  if (duplicate == NULL)
+  {
+    return NULL;
+  }
+  strcpy(duplicate, str);
+  return duplicate;
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+///
+/// A helper function to retrieve a line from a file and avoid using getline() which is not available for this task.
+/// It returns the number of characters read (excluding null terminator) or -1 if there was a memory allocation error.
+///
+/// @param lineptr A pointer to the line
+/// @param n The size of the line
+/// @param stream The file to read from
+///
+/// @return
+///      -1 if there was a memory allocation error
+///      the number of characters read (excluding null terminator) if there was no memory allocation error
+//
+size_t getLineFromFile(char **lineptr, size_t *n, FILE *stream)
+{
+  if (lineptr == NULL || n == NULL || stream == NULL)
+  {
+    return (size_t)-1;
+  }
+  if (*lineptr == NULL || *n == 0)
+  {
+    *n = 128; // Initial buffer size
+    *lineptr = (char *)malloc(*n);
+    if (*lineptr == NULL)
+    {
+      return (size_t)-1;
+    }
+  }
+  int c;
+  size_t i = 0;
+  while ((c = fgetc(stream)) != EOF && c != '\n')
+  {
+    if (i == *n - 1)
+    {
+      // Resize the buffer if needed
+      *n *= 2;
+      char *temp = (char *)realloc(*lineptr, *n);
+      if (temp == NULL)
+      {
+        free(*lineptr);
+        return (size_t)-1;
+      }
+      *lineptr = temp;
+    }
+    (*lineptr)[i++] = (char)c;
+  }
+  (*lineptr)[i] = '\0';
+  // Return the number of characters read (excluding null terminator)
+  return i;
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+///
 /// This function reads a line from a file and returns it. It reads the file at a given line index number.
 ///
 /// @param file The file to read from
@@ -416,12 +496,19 @@ char *readLine(FILE *file, int line_number)
 {
   char *line = NULL;
   size_t len = 0;
+  size_t read;
   fseek(file, 0, SEEK_SET);
   for (int i = 0; i < line_number; i++)
   {
-    getline(&line, &len, file);
+    read = getLineFromFile(&line, &len, file);
+
+    // Check for end of file
+    if (read == (size_t)-1) {
+      free(line);
+      return NULL; // Line number out of bounds
+    }
   }
-  char *result = strdup(line);
+  char *result = duplicateString(line);
   free(line);
   line = NULL;
   return result;
@@ -446,11 +533,11 @@ int checkConfigFile(char *config_file)
   {
     return CANNOT_OPEN_FILE;
   }
-  char *magic_number = "ESP\n";
+  char *magic_number = "ESP";
   char *line = NULL;
   size_t len = 0;
   size_t read;
-  read = getline(&line, &len, file);
+  read = getLineFromFile(&line, &len, file);
   if (read == (size_t)-1)
   {
     printf("Error: Invalid file: %s\n", config_file);
@@ -959,7 +1046,7 @@ int chooseCardToKeep(int player_id, Card **player_handcards, Card **player_chose
       break;
     }
     free(input);
-  } while (true);
+  } while (TRUE);
   if (chosen_card != NULL)
   {
     removeCardFromHand(player_handcards, chosen_card);
@@ -1276,16 +1363,16 @@ int isActionInputCorrect(char *row_number, const char *card_number)
   if ((row_number == NULL || card_number == NULL) || strtok(NULL, " ") != NULL)
   {
     printf("Please enter the correct number of parameters!\n");
-    return false;
+    return FALSE;
   }
   else if (stringToInt(row_number) > 3 || stringToInt(row_number) < 1)
   {
     printf("Please enter a valid row number!\n");
-    return false;
+    return FALSE;
   }
   else
   {
-    return true;
+    return TRUE;
   }
 }
 
@@ -1343,7 +1430,7 @@ void convertToLowercaseAndTrim(char *str)
 //
 int actionChoosingLoop(int player_id, Card **player_handcards, Card **player_chosencards, Card ***player_cardrows)
 {
-  bool skip_prompt = false;
+  int skip_prompt = FALSE;
   do
   {
     if (!skip_prompt)
@@ -1359,7 +1446,7 @@ int actionChoosingLoop(int player_id, Card **player_handcards, Card **player_cho
       if (strlen(input) > 4)
       {
         printf("Please enter the correct number of parameters!\n");
-        skip_prompt = true;
+        skip_prompt = TRUE;
         free(input);
         continue;
       }
@@ -1387,7 +1474,7 @@ int actionChoosingLoop(int player_id, Card **player_handcards, Card **player_cho
       if (strlen(input) > 4)
       {
         printf("Please enter the correct number of parameters!\n");
-        skip_prompt = true;
+        skip_prompt = TRUE;
         free(input);
         continue;
       }
@@ -1396,11 +1483,11 @@ int actionChoosingLoop(int player_id, Card **player_handcards, Card **player_cho
     else
     {
       printf("Please enter a valid command!\n");
-      skip_prompt = true;
+      skip_prompt = TRUE;
       free(input);
       continue;
     }
-    skip_prompt = false;
+    skip_prompt = FALSE;
     free(input);
   } while (*player_chosencards != NULL);
   return 0;
@@ -1454,10 +1541,10 @@ void helpAction(int player_id, Card **player_handcards, Card **player_chosencard
 ///      0 if the place action could be performed successfully
 ///      1 if the place action could not be performed successfully
 //
-int placeAction(char *input, bool *skip_prompt, int player_id, Card **player_handcards,
+int placeAction(char *input, int *skip_prompt, int player_id, Card **player_handcards,
                 Card **player_chosencards, Card ***player_cardrows)
 {
-  char *input_copy = strdup(input);
+  char *input_copy = duplicateString(input);
   if (input_copy == NULL)
   {
     printf("Error: Memory allocation failure\n");
@@ -1469,7 +1556,7 @@ int placeAction(char *input, bool *skip_prompt, int player_id, Card **player_han
   if (rest_of_input != NULL || row_number == NULL || card_number == NULL)
   {
     printf("Please enter the correct number of parameters!\n");
-    *skip_prompt = true;
+    *skip_prompt = TRUE;
     free(input_copy);
     return 1;
   }
@@ -1480,7 +1567,7 @@ int placeAction(char *input, bool *skip_prompt, int player_id, Card **player_han
     if (choosen_card == NULL)
     {
       printf("Please enter the number of a card in your chosen cards!\n");
-      *skip_prompt = true;
+      *skip_prompt = TRUE;
       free(input_copy);
       return 1;
     }
@@ -1492,7 +1579,7 @@ int placeAction(char *input, bool *skip_prompt, int player_id, Card **player_han
       if (result == 1)
       {
         printf("This card cannot extend the chosen row!\n");
-        *skip_prompt = true;
+        *skip_prompt = TRUE;
         addCardToChosen(player_chosencards, choosen_card);
         free(input_copy);
         return 1;
@@ -1504,7 +1591,7 @@ int placeAction(char *input, bool *skip_prompt, int player_id, Card **player_han
   else
   {
     free(input_copy);
-    *skip_prompt = true;
+    *skip_prompt = TRUE;
     return 1;
   }
   free(input_copy);
@@ -1527,7 +1614,7 @@ int placeAction(char *input, bool *skip_prompt, int player_id, Card **player_han
 ///      0 if the discard action could be performed successfully
 ///      1 if the discard action could not be performed successfully
 //
-int discardAction(char *input, bool *skip_prompt, int player_id, Card **player_handcards,
+int discardAction(char *input, int *skip_prompt, int player_id, Card **player_handcards,
                   Card **player_chosencards, Card ***player_cardrows)
 {
   char *card_number = strtok(input + 7, " ");
@@ -1535,20 +1622,20 @@ int discardAction(char *input, bool *skip_prompt, int player_id, Card **player_h
   if (rest_of_input != NULL || card_number == NULL)
   {
     printf("Please enter the correct number of parameters!\n");
-    *skip_prompt = true;
+    *skip_prompt = TRUE;
     return 1;
   }
   if (card_number == NULL || strtok(NULL, " ") != NULL)
   {
     printf("Please enter the correct number of parameters!\n");
-    *skip_prompt = true;
+    *skip_prompt = TRUE;
     return 1;
   }
   Card *choosen_card = getCardFromChosen(*player_chosencards, stringToInt(card_number));
   if (choosen_card == NULL)
   {
     printf("Please enter the number of a card in your chosen cards!\n");
-    *skip_prompt = true;
+    *skip_prompt = TRUE;
     return 1;
   }
   else
